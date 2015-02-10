@@ -970,116 +970,153 @@ public interface CloudFoundryOperations {
 	
 	/**
 	 * Create Organization
+	 * @param organizationName
+	 * @param orgQuotaName
 	 * */
 	void createOrganization(String organizationName, String orgQuotaName);
 	
 	/**
 	 * Delete Organization
+	 * @param organizationName
 	 * */
 	void deleteOrganization(String organizationName);
 	
 	/**
 	 * Update Organization
+	 * @param cloudOrganization
+	 * @param orgQuotaName
 	 * */
 	void updateOrganization(CloudOrganization cloudOrganization, String orgQuotaName);
 	
 	/**
 	 * Create Space
+	 * @param spaceName
+	 * @param organizationName
 	 * */
 	void createSpace(String spaceName, String organizationName);
 	
 	/**
 	 * Delete Space
+	 * @param spaceName
+	 * @param organizationName
 	 * */
 	void deleteSpace(String spaceName, String organizationName);
 	
 	/**
 	 * Update Space
+	 * @param cloudSpace
+	 * @param organizationName
 	 * */
 	void updateSpace(CloudSpace cloudSpace, String organizationName);
 	
 	/**
 	 * List all Security Groups
+	 * @return List<CloudSecurityGroup>
 	 * */
 	List<CloudSecurityGroup> getSecurityGroups();
 	
 	/**
 	 * Creating a Security Group
+	 * @param name
+	 * @param cloudSecurityRules
+	 * @param spaceName
+	 * @param organizationName
 	 * */
 	void createSecurityGroup(String name, List<CloudSecurityRules> cloudSecurityRules, String spaceName, String organizationName);
 
 	/**
 	 * Associate Space with the Security Group
+	 * @param securityName 
+	 * @param spaceName
+	 * @param orgName
 	 * */
 	void setSpaceWithSecurityGroup(String securityName, String spaceName, String orgName);
 	
 	/**
 	 * Associate Space with the Security Group SpaceGUID
+	 * @param securityName
+	 * @param spaceGuid
 	 * */
 	void setSpaceWithSecurityGroup(String securityName, String spaceGuid);
 	
 	/**
 	 * Delete a Particular Security Group
+	 * @param securityName
 	 * */
 	void deleteSecurityGroup(String securityName);
 	
 	/**
 	 * Remove Space from the Security Group
+	 * @param securityName
+	 * @param spaceName
+	 * @param orgName
 	 * */
 	void deleteSpaceFromSecurityGroup(String securityName, String spaceName, String orgName);
 	
 	/**
-	 * 
+	 * DeleteSpaceFromSecurityGroup
+	 * @param securityName
+	 * @param spaceGuid
 	 * */
 	void deleteSpaceFromSecurityGroup(String securityName, String spaceGuid);
 	
 	/**
 	 * Updating a Security Group
+	 * @param cloudSecurityGroup
 	 * */
 	void updateSecurityGroup(CloudSecurityGroup cloudSecurityGroup);
 	
 	/**
 	 * List all Spaces for the Security Group
+	 * @param securityName
 	 * */
 	List<CloudSpace> getSpaceForSecurityGroup(String securityName);
 	
 	/**
 	 * Set a Security Group as a default for staging
+	 * @param cloudSecurityGroup
 	 * */
 	void setSecurityGroupForStaging(CloudSecurityGroup cloudSecurityGroup);
 	
 	/**
 	 * Set a Security Group as a default for running Apps
+	 * @param cloudSecurityGroup
 	 * */
 	void setSecurityGroupForRunningApps(CloudSecurityGroup cloudSecurityGroup);
 	
 	/**
 	 * Removing a Security Group as a default for staging
+	 * @param cloudSecurityGroup
 	 * */
 	void deleteSecurityForStaging(CloudSecurityGroup cloudSecurityGroup);
 	
 	/**
 	 * Removing a Security Group as a default for running Apps
+	 * @param cloudSecurityGroup
 	 * */
 	void deleteSecurityGroupForRunningApps(CloudSecurityGroup cloudSecurityGroup);
 	
 	/**
 	 * Return the Security Groups used for staging
+	 * @return List<CloudSecurityGroup>
 	 * */
 	List<CloudSecurityGroup> getSecurityGroupsForStaging();
 	
 	/**
 	 * Return the Security Groups used for running Apps
+	 * @return List<CloudSecurityGroup>
 	 * */
 	List<CloudSecurityGroup> getSecurityGroupForRunningApps();
 	
 	/**
 	 * List all Events
+	 * @return List<CloudEvent>
 	 * */
 	List<CloudEvent> getAllEvents();
 	
 	/**
 	 * List Event By Fiter
+	 * @param eventType
 	 * */
 	List<CloudEvent> getEventsByEventType(String eventType);
 	
@@ -1091,6 +1128,8 @@ public interface CloudFoundryOperations {
 	
 	/**
 	 * List all Service Instances Filter CloudSpace 
+	 * @param spaceGuid
+	 * @return List<CloudService>
 	 * */
 	List<CloudService> getServicesFromSpace(String spaceGuid);
 	
@@ -1109,11 +1148,14 @@ public interface CloudFoundryOperations {
 	
 	/**
 	 * Downloads the bits for an App
+	 * @param appName
+	 * @return byte[]
 	 * */
 	byte[] downloadAppWithAppName(String appName);
 	
 	/**
 	 * List all Buildpacks
+	 * @return List<CloudAdminBuildpack>
 	 * */
 	List<CloudAdminBuildpack> getBuildpacks();
 	
