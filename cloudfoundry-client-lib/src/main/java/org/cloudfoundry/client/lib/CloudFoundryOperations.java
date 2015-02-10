@@ -25,17 +25,23 @@ import java.util.Map;
 import org.cloudfoundry.client.lib.archive.ApplicationArchive;
 import org.cloudfoundry.client.lib.domain.ApplicationLog;
 import org.cloudfoundry.client.lib.domain.ApplicationStats;
+import org.cloudfoundry.client.lib.domain.CloudAdminBuildpack;
 import org.cloudfoundry.client.lib.domain.CloudApplication;
 import org.cloudfoundry.client.lib.domain.CloudDomain;
+import org.cloudfoundry.client.lib.domain.CloudEvent;
 import org.cloudfoundry.client.lib.domain.CloudInfo;
 import org.cloudfoundry.client.lib.domain.CloudOrganization;
 import org.cloudfoundry.client.lib.domain.CloudQuota;
 import org.cloudfoundry.client.lib.domain.CloudRoute;
+import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
+import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
+import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
+import org.cloudfoundry.client.lib.domain.CloudUser;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -733,6 +739,46 @@ public interface CloudFoundryOperations {
 	 * @return List<CloudQuota>
 	 */
 	List<CloudQuota> getQuotas();
+	
+	/**
+	 * Get space quota Definitions
+	 * */
+	List<CloudSpaceQuota> getSpaceQuotas();
+	
+	/**
+	 * Create spaceQuota Definitions
+	 * */
+	void createSpaceQuota(CloudSpaceQuota spaceQuota);
+	
+	/**
+	 * Remove spaceQuota Definitions from Space
+	 * */
+	void removeSpaceFromSpaceQuota(String spaceQuotaName, String spaceName, String orgName);
+	
+	/**
+	 * Associate Space with the Space Quota Definition
+	 * */
+	void associateSpaceWithSpaceQuota(String spaceQuotaName, String spaceName, String orgName);
+	
+	/**
+	 * Update SpaceQuota
+	 * */
+	void updateSpaceQuota(CloudSpaceQuota spaceQuota);
+	
+	/**
+	 * DeleteSpaceQuota
+	 * */
+	void deleteSpaceQuota(String spaceQuotaName);
+	
+	/**
+	 * Get All SpaceQuota With Space
+	 * */
+	List<CloudSpaceQuota> getSpaceQuotaWithSpace(String spaceName, String orgName);
+	
+	/**
+	 * get All Spaces With SpaceQuota
+	 * */
+	List<CloudSpace> getSpacesWithSpaceQuota(String spaceQuotaName);
 
 	/**
 	 * Update Quota definition
@@ -741,4 +787,334 @@ public interface CloudFoundryOperations {
 	 * @param name
 	 */
 	void updateQuota(CloudQuota quota, String name);
+	
+	/**
+	 * Get Users by OrgName
+	 * 
+	 * @param orgName
+	 * */
+	List<CloudUser> getUsersByOrgName(String orgName);
+	
+	/**
+	 * Get Users By role and OrgName
+	 * */
+	List<CloudUser> getUsersByOrgRole(String orgName,String roleName);
+	
+	/**
+	 * Get Users By role and SpaceName
+	 * */
+	List<CloudUser> getUsersBySpaceRole(String spaceUUID,String roleName);
+	
+	/**
+	 * Get All users
+	 * */
+	List<CloudUser> getAllUsers();
+	
+	/**
+	 * Get Users Filter Some
+	 * */
+	List<CloudUser> getUserWithFileters(Map<String,Object> filters);
+	
+	/**
+	 * Find User by userName
+	 * */
+	CloudUser findUserByUsername(String username);
+	
+	/**
+	 * Create User
+	 * */
+	void createUser(String username, String password, String familyName, String givenName, String phoneNumber);
+	
+	/**
+	 * Create User only Resister2Uaa
+	 * */
+	String registerUserOnly(String username, String password, String familyName, String givenName, String phoneNumber);	
+	
+	/**
+	 * Update User
+	 * */
+	void updateUserWithUsername(String username, Map<String,Object> updateParams);
+	
+	/**
+	 * approve User
+	 * @param userName
+	 * @param displayName
+	 * @param member_type
+	 * @param authorities
+	 * */
+	void approveUser(String userName, String displayName, String member_type, String authorities);
+	
+	/**
+	 * updateGroupMember
+	 * @param userName
+	 * @param displayName | uaa.admin,cloud_controller.admin,scim.read,scim.write...
+	 * @param member_type | members,readers,writers
+	 * @param isDelete 
+	 * */
+	public void updateGroupMember(String userName, String displayName, String member_type, Boolean isDelete);
+	
+	/**
+	 * Associate User with the Organization
+	 * */
+	void associateUserWithOrg(CloudOrganization organization,CloudUser user);
+	
+	/**
+	 * Associate User with the Organization role
+	 * */
+	void associateUserWithOrgRole(CloudOrganization organization,CloudUser user,String roleName);
+	
+	/**
+	 * Associate User with the SpaceRole
+	 * */
+	void associateUserWithSpaceRole(CloudSpace space, CloudUser user,String roleName);
+	
+	/**
+	 * Associate Organization with the User
+	 * */
+	void associateOrgWithUser(CloudUser user, CloudOrganization organization);
+	
+	/**
+	 * Associate Space with the User
+	 * */
+	void associataSpaceWithUser(CloudUser user, CloudSpace space);
+	
+	/**
+	 * Associate Role Organization with the User
+	 * */
+	void associateOrgRoleWithUser(CloudUser user, CloudOrganization organization, String roleName);
+	
+	/**
+	 * Associate Role Space with the User
+	 * */
+	void associateSpaceRoleWithUser(CloudUser user, CloudSpace space, String roleName);
+	
+	/**
+	 * Remove User from the Organization
+	 * */
+	void removeUserFormOrg(CloudOrganization organization, CloudUser user);
+	
+	/**
+	 * Remove User from the Role Organization
+	 * */
+	void removeUserFromRoleOrg(CloudOrganization organization, CloudUser user, String roleName);
+	
+	/**
+	 * Remove User from the Role Space
+	 * */
+	void removeUserFromRoleSpace(CloudSpace space, CloudUser user, String roleName);
+	
+	/**
+	 * Remove Organization from the User
+	 * */
+	void removeOrgFromUser(CloudUser user, CloudOrganization organization);
+	
+	/**
+	 * Remove Role Organization from the User
+	 * */
+	void removeRoleOrgFromUser(CloudUser user, CloudOrganization organization, String roleName);
+	
+	/**
+	 * Remove Space from the User
+	 * */
+	void removeSpaceFromUser(CloudUser user, CloudSpace space);
+	
+	/**
+	 * Remove Role Space from the User
+	 * */
+	void removeRoleSpaceFromUser(CloudUser user, CloudSpace space, String roleName);
+	
+	/**
+	 * Get Spaces from Organization 
+	 * @param orgName
+	 * */
+	List<CloudSpace> getSpaceFromOrgName(String orgName);
+	
+	/**
+	 * Get Applications From Space
+	 * @param spaceGuid
+	 * */
+	List<CloudApplication> getAppsFromSpaceName(String spaceGuid);
+	
+	/**
+	 * Get Domains From OrgName
+	 * @param orgName
+	 * */
+	List<CloudDomain> getDomainFromOrgName(String orgName);
+	
+	/**
+	 * Get UserSummary From UserName
+	 * @param userName
+	 * */
+	CloudUser getUsersummaryFromUserName(String userName);
+	
+	/**
+	 * Is Member By UserAndDisplayName
+	 * @param user_id
+	 * @param displayName
+	 * */
+	Boolean isMemberByUserAndDisplayName(String user_id, String displayName);
+	
+	/**
+	 * Is Reader By UserAndDisplayName
+	 * @param user_id
+	 * @param displayName
+	 * */
+	Boolean isReaderByUserAndDisplayName(String user_id, String displayName);
+	
+	/**
+	 * Is Writer By UserAndDisplayName
+	 * @param user_id
+	 * @param displayName
+	 * */
+	Boolean isWriterByUserAndDisplayName(String user_id, String displayName);
+	
+	/**
+	 * Create Organization
+	 * */
+	void createOrganization(String organizationName, String orgQuotaName);
+	
+	/**
+	 * Delete Organization
+	 * */
+	void deleteOrganization(String organizationName);
+	
+	/**
+	 * Update Organization
+	 * */
+	void updateOrganization(CloudOrganization cloudOrganization, String orgQuotaName);
+	
+	/**
+	 * Create Space
+	 * */
+	void createSpace(String spaceName, String organizationName);
+	
+	/**
+	 * Delete Space
+	 * */
+	void deleteSpace(String spaceName, String organizationName);
+	
+	/**
+	 * Update Space
+	 * */
+	void updateSpace(CloudSpace cloudSpace, String organizationName);
+	
+	/**
+	 * List all Security Groups
+	 * */
+	List<CloudSecurityGroup> getSecurityGroups();
+	
+	/**
+	 * Creating a Security Group
+	 * */
+	void createSecurityGroup(String name, List<CloudSecurityRules> cloudSecurityRules, String spaceName, String organizationName);
+
+	/**
+	 * Associate Space with the Security Group
+	 * */
+	void setSpaceWithSecurityGroup(String securityName, String spaceName, String orgName);
+	
+	/**
+	 * Associate Space with the Security Group SpaceGUID
+	 * */
+	void setSpaceWithSecurityGroup(String securityName, String spaceGuid);
+	
+	/**
+	 * Delete a Particular Security Group
+	 * */
+	void deleteSecurityGroup(String securityName);
+	
+	/**
+	 * Remove Space from the Security Group
+	 * */
+	void deleteSpaceFromSecurityGroup(String securityName, String spaceName, String orgName);
+	
+	/**
+	 * 
+	 * */
+	void deleteSpaceFromSecurityGroup(String securityName, String spaceGuid);
+	
+	/**
+	 * Updating a Security Group
+	 * */
+	void updateSecurityGroup(CloudSecurityGroup cloudSecurityGroup);
+	
+	/**
+	 * List all Spaces for the Security Group
+	 * */
+	List<CloudSpace> getSpaceForSecurityGroup(String securityName);
+	
+	/**
+	 * Set a Security Group as a default for staging
+	 * */
+	void setSecurityGroupForStaging(CloudSecurityGroup cloudSecurityGroup);
+	
+	/**
+	 * Set a Security Group as a default for running Apps
+	 * */
+	void setSecurityGroupForRunningApps(CloudSecurityGroup cloudSecurityGroup);
+	
+	/**
+	 * Removing a Security Group as a default for staging
+	 * */
+	void deleteSecurityForStaging(CloudSecurityGroup cloudSecurityGroup);
+	
+	/**
+	 * Removing a Security Group as a default for running Apps
+	 * */
+	void deleteSecurityGroupForRunningApps(CloudSecurityGroup cloudSecurityGroup);
+	
+	/**
+	 * Return the Security Groups used for staging
+	 * */
+	List<CloudSecurityGroup> getSecurityGroupsForStaging();
+	
+	/**
+	 * Return the Security Groups used for running Apps
+	 * */
+	List<CloudSecurityGroup> getSecurityGroupForRunningApps();
+	
+	/**
+	 * List all Events
+	 * */
+	List<CloudEvent> getAllEvents();
+	
+	/**
+	 * List Event By Fiter
+	 * */
+	List<CloudEvent> getEventsByEventType(String eventType);
+	
+	/**
+	 * List events associated with an type enevt since January 1, 2014
+	 * sign will contains: <, >, <=, >=, IN
+	 * */
+	List<CloudEvent> getEventsByActeeAndTimestamp(String actee, String sign, String timestamp);
+	
+	/**
+	 * List all Service Instances Filter CloudSpace 
+	 * */
+	List<CloudService> getServicesFromSpace(String spaceGuid);
+	
+	/**
+	 * Terminate the running App Instance at the given index
+	 * @param appName 
+	 * @param index
+	 * */
+	void deleteAppInstanceWithIndex(String appName, int index);
+	
+	/**
+	 * Delete a Particular User
+	 * @param username
+	 * */
+	void deleteUserWithUserName(String username);
+	
+	/**
+	 * Downloads the bits for an App
+	 * */
+	byte[] downloadAppWithAppName(String appName);
+	
+	/**
+	 * List all Buildpacks
+	 * */
+	List<CloudAdminBuildpack> getBuildpacks();
+	
 }

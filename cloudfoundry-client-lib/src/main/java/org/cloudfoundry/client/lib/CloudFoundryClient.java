@@ -26,18 +26,24 @@ import java.util.UUID;
 import org.cloudfoundry.client.lib.archive.ApplicationArchive;
 import org.cloudfoundry.client.lib.domain.ApplicationLog;
 import org.cloudfoundry.client.lib.domain.ApplicationStats;
+import org.cloudfoundry.client.lib.domain.CloudAdminBuildpack;
 import org.cloudfoundry.client.lib.domain.CloudApplication;
 import org.cloudfoundry.client.lib.domain.CloudApplication.DebugMode;
 import org.cloudfoundry.client.lib.domain.CloudDomain;
+import org.cloudfoundry.client.lib.domain.CloudEvent;
 import org.cloudfoundry.client.lib.domain.CloudInfo;
 import org.cloudfoundry.client.lib.domain.CloudOrganization;
 import org.cloudfoundry.client.lib.domain.CloudQuota;
 import org.cloudfoundry.client.lib.domain.CloudRoute;
+import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
+import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
+import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
+import org.cloudfoundry.client.lib.domain.CloudUser;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -541,5 +547,410 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	public void updateQuota(CloudQuota quota, String name) {
 		cc.updateQuota(quota, name);
 	}
+	
+	@Override
+	public List<CloudSpaceQuota> getSpaceQuotas() {
+		return cc.getSpaceQuotas();
+	}
 
+	@Override
+	public List<CloudUser> getUsersByOrgName(String orgName) {
+		return cc.getUsersByOrgName(orgName);
+	}
+
+
+	@Override
+	public List<CloudUser> getUsersByOrgRole(String orgName, String roleName) {
+		return cc.getUsersByOrgRole(orgName, roleName);
+	}
+
+	@Override
+	public List<CloudUser> getUsersBySpaceRole(String spaceUUID, String roleName) {
+		return cc.getUsersBySpaceRole(spaceUUID, roleName);
+	}
+
+	@Override
+	public void createUser(String username, String password, String familyName, String givenName, String phoneNumber) {
+		cc.createUser(username, password, familyName, givenName, phoneNumber);
+	}
+
+	@Override
+	public List<CloudUser> getAllUsers() {
+		return cc.getAllUsers();
+	}
+
+	@Override
+	public CloudUser findUserByUsername(String username) {
+		return cc.findUserByUsername(username);
+	}
+
+	@Override
+	public void associateUserWithOrg(CloudOrganization organization,
+			CloudUser user) {
+		cc.associateUserWithOrg(organization,user);
+		
+	}
+
+	@Override
+	public void associateUserWithOrgRole(CloudOrganization organization,
+			CloudUser user, String roleName) {
+		cc.associateUserWithOrgRole(organization, user, roleName);
+		
+	}
+
+	@Override
+	public void associateUserWithSpaceRole(CloudSpace space, CloudUser user,
+			String roleName) {
+		cc.associateUserWithSpaceRole(space,user,roleName);
+		
+	}
+
+	@Override
+	public void associateOrgWithUser(CloudUser user,
+			CloudOrganization organization) {
+		cc.associateOrgWithUser(user, organization);
+		
+	}
+
+	@Override
+	public void associateOrgRoleWithUser(CloudUser user,
+			CloudOrganization organization, String roleName) {
+		cc.associateOrgRoleWithUser(user, organization, roleName);
+		
+	}
+
+	@Override
+	public void associateSpaceRoleWithUser(CloudUser user, CloudSpace space,
+			String roleName) {
+		cc.associateSpaceRoleWithUser(user, space, roleName);
+		
+	}
+
+	@Override
+	public void removeUserFormOrg(CloudOrganization organization, CloudUser user) {
+		cc.removeUserFormOrg(organization, user);
+		
+	}
+
+	@Override
+	public void removeUserFromRoleOrg(CloudOrganization organization,
+			CloudUser user, String roleName) {
+		cc.removeUserFromRoleOrg(organization, user, roleName);
+		
+	}
+
+	@Override
+	public void removeUserFromRoleSpace(CloudSpace space, CloudUser user,
+			String roleName) {
+		cc.removeUserFromRoleSpace(space,user,roleName);
+		
+	}
+
+	@Override
+	public void removeOrgFromUser(CloudUser user, CloudOrganization organization) {
+		cc.removeOrgFromUser(user, organization);
+		
+	}
+
+	@Override
+	public void removeRoleOrgFromUser(CloudUser user,
+			CloudOrganization organization, String roleName) {
+		cc.removeRoleOrgFromUser(user, organization, roleName);
+		
+	}
+
+	@Override
+	public void removeRoleSpaceFromUser(CloudUser user, CloudSpace space,
+			String roleName) {
+		cc.removeRoleSpaceFromUser(user, space, roleName);
+		
+	}
+
+	@Override
+	public void removeSpaceFromUser(CloudUser user, CloudSpace space) {
+		cc.removeSpaceFromUser(user, space);
+		
+	}
+
+	@Override
+	public List<CloudSpace> getSpaceFromOrgName(String orgName) {
+		return cc.getSpaceFromOrgName(orgName);
+	}
+
+	@Override
+	public List<CloudApplication> getAppsFromSpaceName(String spaceGuid) {
+		return cc.getAppsFromSpaceName(spaceGuid);
+	}
+
+	@Override
+	public void approveUser(String userName, String displayName,
+			String member_type, String authorities) {
+		cc.approveUser(userName, displayName, member_type, authorities);
+	}
+
+	@Override
+	public void updateGroupMember(String userName, String displayName,
+			String member_type, Boolean isDelete) {
+		cc.updateGroupMember(userName, displayName, member_type, isDelete);
+		
+	}
+
+	@Override
+	public List<CloudDomain> getDomainFromOrgName(String orgName) {
+		return cc.getDomainFromOrgName(orgName);
+	}
+
+	@Override
+	public CloudUser getUsersummaryFromUserName(String userName) {
+		return cc.getUsersummaryFromUserName(userName);
+	}
+
+	@Override
+	public Boolean isMemberByUserAndDisplayName(String user_id,
+			String displayName) {
+		return cc.isMemberByUserAndDisplayName(user_id, displayName);
+	}
+
+	@Override
+	public Boolean isReaderByUserAndDisplayName(String user_id,
+			String displayName) {
+		return cc.isReaderByUserAndDisplayName(user_id, displayName);
+	}
+
+	@Override
+	public Boolean isWriterByUserAndDisplayName(String user_id,
+			String displayName) {
+		return cc.isWriterByUserAndDisplayName(user_id, displayName);
+	}
+
+	@Override
+	public void associataSpaceWithUser(CloudUser user, CloudSpace space) {
+		cc.associataSpaceWithUser(user, space);
+	}
+
+	@Override
+	public String registerUserOnly(String username, String password,
+			String familyName, String givenName, String phoneNumber) {
+		
+		return cc.registerUserOnly(username, password, familyName, givenName, phoneNumber);
+	}
+
+	@Override
+	public void updateUserWithUsername(String username,
+			Map<String, Object> updateParams) {
+		cc.updateUserWithUsername(username, updateParams);
+		
+	}
+
+	@Override
+	public List<CloudUser> getUserWithFileters(Map<String, Object> filters) {
+		return cc.getUserWithFileters(filters);
+	}
+
+	@Override
+	public void createSpaceQuota(CloudSpaceQuota spaceQuota) {
+		cc.createSpaceQuota(spaceQuota);
+		
+	}
+
+	@Override
+	public void removeSpaceFromSpaceQuota(String spaceQuotaName,
+			String spaceName , String orgName) {
+		cc.removeSpaceFromSpaceQuota(spaceQuotaName, spaceName,orgName);
+		
+	}
+
+	@Override
+	public void associateSpaceWithSpaceQuota(String spaceQuotaName,
+			String spaceName, String orgName) {
+		cc.associateSpaceWithSpaceQuota(spaceQuotaName, spaceName, orgName);
+		
+	}
+
+	@Override
+	public void updateSpaceQuota(CloudSpaceQuota spaceQuota) {
+		cc.updateSpaceQuota(spaceQuota);
+		
+	}
+
+	@Override
+	public void deleteSpaceQuota(String spaceQuotaName) {
+		cc.deleteSpaceQuota(spaceQuotaName);
+		
+	}
+
+	@Override
+	public List<CloudSpaceQuota> getSpaceQuotaWithSpace(String spaceName,
+			String orgName) {
+		return cc.getSpaceQuotaWithSpace(orgName,spaceName);
+	}
+
+	@Override
+	public List<CloudSpace> getSpacesWithSpaceQuota(String spaceQuotaName) {
+		return cc.getSpacesWithSpaceQuota(spaceQuotaName);
+	}
+
+	@Override
+	public void createOrganization(String organizationName, String orgQuotaName) {
+		cc.createOrganization(organizationName, orgQuotaName);
+		
+	}
+
+	@Override
+	public void deleteOrganization(String organizationName) {
+		cc.deleteOrganization(organizationName);
+		
+	}
+
+	@Override
+	public void updateOrganization(CloudOrganization cloudOrganization, String orgQuotaName) {
+		cc.updateOrganization(cloudOrganization, orgQuotaName);
+		
+	}
+
+	@Override
+	public void createSpace(String spaceName, String organizationName) {
+		cc.createSpace(spaceName, organizationName);
+		
+	}
+
+	@Override
+	public void deleteSpace(String spaceName, String organizationName) {
+		cc.deleteSpace(spaceName, organizationName);
+		
+	}
+
+	@Override
+	public void updateSpace(CloudSpace cloudSpace, String organizationName) {
+		cc.updateSpace(cloudSpace, organizationName);
+		
+	}
+
+	@Override
+	public List<CloudSecurityGroup> getSecurityGroups() {
+		return cc.getSecurityGroups();
+	}
+
+	@Override
+	public void createSecurityGroup(String name,
+			List<CloudSecurityRules> cloudSecurityRules, String spaceName,
+			String organizationName) {
+		cc.createSecurityGroup(name, cloudSecurityRules, spaceName, organizationName);
+		
+	}
+
+	@Override
+	public void setSpaceWithSecurityGroup(String securityName,
+			String spaceName, String orgName) {
+		cc.setSpaceWithSecurityGroup(securityName, spaceName, orgName);
+		
+	}
+
+	@Override
+	public void deleteSecurityGroup(String securityName) {
+		cc.deleteSecurityGroup(securityName);
+		
+	}
+
+	@Override
+	public void deleteSpaceFromSecurityGroup(String securityName,
+			String spaceName, String orgName) {
+		cc.deleteSpaceFromSecurityGroup(securityName, spaceName, orgName);
+		
+	}
+
+	@Override
+	public void updateSecurityGroup(CloudSecurityGroup cloudSecurityGroup) {
+		cc.updateSecurityGroup(cloudSecurityGroup);
+		
+	}
+
+	@Override
+	public List<CloudSpace> getSpaceForSecurityGroup(String securityName) {
+		return cc.getSpaceForSecurityGroup(securityName);
+	}
+
+	@Override
+	public void setSecurityGroupForStaging(CloudSecurityGroup cloudSecurityGroup) {
+		cc.setSecurityGroupForStaging(cloudSecurityGroup);		
+	}
+
+	@Override
+	public void setSecurityGroupForRunningApps(
+			CloudSecurityGroup cloudSecurityGroup) {
+		cc.setSecurityGroupForRunningApps(cloudSecurityGroup);		
+	}
+
+	@Override
+	public void deleteSecurityForStaging(CloudSecurityGroup cloudSecurityGroup) {
+		cc.deleteSecurityForStaging(cloudSecurityGroup);		
+	}
+
+	@Override
+	public void deleteSecurityGroupForRunningApps(
+			CloudSecurityGroup cloudSecurityGroup) {
+		cc.deleteSecurityGroupForRunningApps(cloudSecurityGroup);		
+	}
+
+	@Override
+	public List<CloudSecurityGroup> getSecurityGroupsForStaging() {
+		return cc.getSecurityGroupsForStaging();
+	}
+
+	@Override
+	public List<CloudSecurityGroup> getSecurityGroupForRunningApps() {
+		return cc.getSecurityGroupForRunningApps();
+	}
+
+	@Override
+	public void deleteSpaceFromSecurityGroup(String securityName,
+			String spaceGuid) {
+		cc.deleteSpaceFromSecurityGroup(securityName, spaceGuid);		
+	}
+
+	@Override
+	public void setSpaceWithSecurityGroup(String securityName, String spaceGuid) {
+		cc.setSpaceWithSecurityGroup(securityName, spaceGuid);		
+	}
+
+	@Override
+	public List<CloudEvent> getAllEvents() {		
+		return cc.getAllEvents();
+	}
+
+	@Override
+	public List<CloudEvent> getEventsByEventType(String eventType) {
+		return cc.getEventsByEventType(eventType);
+	}
+
+	@Override
+	public List<CloudEvent> getEventsByActeeAndTimestamp(String actee,
+			String sign, String timestamp) {
+		return cc.getEventsByActeeAndTimestamp(actee, sign, timestamp);
+	}
+
+	@Override
+	public List<CloudService> getServicesFromSpace(String spaceGuid) {
+		return cc.getServicesFromSpace(spaceGuid);
+	}
+
+	@Override
+	public void deleteAppInstanceWithIndex(String appName, int index) {
+		cc.deleteAppInstanceWithIndex(appName,index);
+	}
+
+	@Override
+	public void deleteUserWithUserName(String username) {
+		cc.deleteUserWithUserName(username);
+	}
+
+	@Override
+	public byte[] downloadAppWithAppName(String appName) {
+		return cc.downloadAppWithAppName(appName);		
+	}
+
+	@Override
+	public List<CloudAdminBuildpack> getBuildpacks() {
+		return cc.getBuildpacks();
+	}
 }

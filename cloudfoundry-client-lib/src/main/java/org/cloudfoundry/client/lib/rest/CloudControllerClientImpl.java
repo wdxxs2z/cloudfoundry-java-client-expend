@@ -51,21 +51,28 @@ import org.cloudfoundry.client.lib.archive.ApplicationArchive;
 import org.cloudfoundry.client.lib.archive.DirectoryApplicationArchive;
 import org.cloudfoundry.client.lib.archive.ZipApplicationArchive;
 import org.cloudfoundry.client.lib.domain.ApplicationLog;
+import org.cloudfoundry.client.lib.domain.ApplicationLogs;
 import org.cloudfoundry.client.lib.domain.ApplicationStats;
+import org.cloudfoundry.client.lib.domain.CloudAdminBuildpack;
 import org.cloudfoundry.client.lib.domain.CloudApplication;
 import org.cloudfoundry.client.lib.domain.CloudDomain;
+import org.cloudfoundry.client.lib.domain.CloudEvent;
 import org.cloudfoundry.client.lib.domain.CloudInfo;
 import org.cloudfoundry.client.lib.domain.CloudOrganization;
 import org.cloudfoundry.client.lib.domain.CloudQuota;
 import org.cloudfoundry.client.lib.domain.CloudResource;
 import org.cloudfoundry.client.lib.domain.CloudResources;
 import org.cloudfoundry.client.lib.domain.CloudRoute;
+import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
+import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudServicePlan;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
+import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
+import org.cloudfoundry.client.lib.domain.CloudUser;
 import org.cloudfoundry.client.lib.domain.CrashInfo;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstanceState;
@@ -89,7 +96,6 @@ import org.springframework.http.client.ClientHttpRequest;
 import org.springframework.http.client.ClientHttpRequestFactory;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
-import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.util.Assert;
 import org.springframework.util.LinkedMultiValueMap;
@@ -224,16 +230,16 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 
 	@Override
 	public List<ApplicationLog> getRecentLogs(String appName) {
-		AccumulatingApplicationLogListener listener = new AccumulatingApplicationLogListener();
-		streamLoggregatorLogs(appName, listener, true);
-		synchronized (listener) {
-			try {
-				listener.wait();
-			} catch (InterruptedException e) {
-				// return any captured logs
-			}
-		}
-		return listener.getLogs();
+		UUID appId = getAppId(appName);
+
+		String endpoint = getInfo().getLoggregatorEndpoint();
+		String uri = loggregatorClient.getRecentHttpEndpoint(endpoint);
+
+		ApplicationLogs logs = getRestTemplate().getForObject(uri + "?app={guid}", ApplicationLogs.class, appId);
+
+		Collections.sort(logs);
+
+		return logs;
 	}
 
 	@Override
@@ -413,16 +419,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 							.setReadTimeout(defaultSocketTimeout);
 				}
 			}
-		}
-	}
-
-	public static class CloudFoundryFormHttpMessageConverter extends FormHttpMessageConverter {
-		@Override
-		protected String getFilename(Object part) {
-			if (part instanceof UploadApplicationPayload) {
-				return ((UploadApplicationPayload) part).getArchive().getFilename();
-			}
-			return super.getFilename(part);
 		}
 	}
 
@@ -636,6 +632,26 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2";
 		if (sessionSpace != null) {
 			urlVars.put("space", sessionSpace.getMeta().getGuid());
+			urlPath = urlPath + "/spaces/{space}";
+		}
+		urlPath = urlPath + "/service_instances?inline-relations-depth=1&return_user_provided_service_instances=true";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, urlVars);
+		List<CloudService> services = new ArrayList<CloudService>();
+		for (Map<String, Object> resource : resourceList) {
+			if (hasEmbeddedResource(resource, "service_plan")) {
+				fillInEmbeddedResource(resource, "service_plan", "service");
+			}
+			services.add(resourceMapper.mapResource(resource, CloudService.class));
+		}
+		return services;
+	}
+	
+	@Override
+	public List<CloudService> getServicesFromSpace(String spaceGuid) {
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		String urlPath = "/v2";
+		if (sessionSpace != null) {
+			urlVars.put("space", spaceGuid);
 			urlPath = urlPath + "/spaces/{space}";
 		}
 		urlPath = urlPath + "/service_instances?inline-relations-depth=1&return_user_provided_service_instances=true";
@@ -2116,4 +2132,985 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		}
 
 	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public List<CloudUser> getUsersByOrgName(String orgName) {
+		CloudOrganization org = this.getOrgByName(orgName, true);
+		UUID orgGuid = org.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/users?inline-relations-depth=2";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUser> users = new ArrayList<CloudUser>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
+			UUID user_id = cloudUser.getMeta().getGuid();
+			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+			cloudUser.setName((String)userInfo.get("userName"));
+			cloudUser.setFamilyName((String)userInfo.get("familyName"));
+			cloudUser.setGivenName((String)userInfo.get("givenName"));
+			List<String> emailList = new ArrayList<String>();
+			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+			for (Map<String, String> email : emails) {				
+				emailList.add((String)email.get("value"));
+			}
+			cloudUser.setEmails(emailList);
+			
+			List<String> phoneList = new ArrayList<String>();
+			if (userInfo.get("phoneNumbers") != null) {
+				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+				for (Map<String, String> phone : phones) {
+					phoneList.add((String)phone.get("value"));
+				}
+				cloudUser.setPhoneNumbers(phoneList);
+			}
+			users.add(cloudUser);
+		}
+		return users;
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	public List<CloudUser> getUsersByOrgRole(String orgName, String roleName) {
+		CloudOrganization org = this.getOrgByName(orgName, true);
+		UUID orgGuid = org.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/" + roleName + "?inline-relations-depth=1";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUser> users = new ArrayList<CloudUser>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
+			UUID user_id = cloudUser.getMeta().getGuid();
+			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+			cloudUser.setName((String)userInfo.get("userName"));
+			cloudUser.setFamilyName((String)userInfo.get("familyName"));
+			cloudUser.setGivenName((String)userInfo.get("givenName"));
+			List<String> emailList = new ArrayList<String>();
+			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+			for (Map<String, String> email : emails) {				
+				emailList.add((String)email.get("value"));
+			}
+			cloudUser.setEmails(emailList);
+			
+			List<String> phoneList = new ArrayList<String>();
+			if (userInfo.get("phoneNumbers") != null) {
+				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+				for (Map<String, String> phone : phones) {
+					phoneList.add((String)phone.get("value"));
+				}
+				cloudUser.setPhoneNumbers(phoneList);
+			}
+			
+			users.add(cloudUser);
+		}
+		return users;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public List<CloudUser> getUsersBySpaceRole(String spaceUUID, String roleName) {
+		String urlPath = "/v2/spaces/" + spaceUUID + "/" + roleName + "?inline-relations-depth=2";
+		List<Map<String,Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUser> users = new ArrayList<CloudUser>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
+			UUID user_id = cloudUser.getMeta().getGuid();
+			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+			cloudUser.setName((String)userInfo.get("userName"));
+			cloudUser.setFamilyName((String)userInfo.get("familyName"));
+			cloudUser.setGivenName((String)userInfo.get("givenName"));
+			List<String> emailList = new ArrayList<String>();
+			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+			for (Map<String, String> email : emails) {				
+				emailList.add((String)email.get("value"));
+			}
+			cloudUser.setEmails(emailList);
+			
+			List<String> phoneList = new ArrayList<String>();
+			if (userInfo.get("phoneNumbers") != null) {
+				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+				for (Map<String, String> phone : phones) {
+					phoneList.add((String)phone.get("value"));
+				}
+				cloudUser.setPhoneNumbers(phoneList);
+			}
+			
+			users.add(cloudUser);
+		}
+		return users;
+	}
+
+	@Override
+	public void createUser(String username, String password, String familyName, String givenName, String phoneNumber) {
+		if (this.findUserByUsername(username) == null) {
+			String uid = oauthClient.createUser(username, password, familyName, givenName, phoneNumber);
+			String urlPath = "/v2/users";
+			HashMap<String, Object> userRequest = new HashMap<String, Object>();
+			userRequest.put("guid", uid);
+			userRequest.put("active", true);
+			getRestTemplate().postForObject(getUrl(urlPath), userRequest, String.class);
+		}		
+	}
+	
+	@Override
+	public String registerUserOnly(String username, String password,
+			String familyName, String givenName, String phoneNumber) {
+		String uid = oauthClient.createUser(username, password, familyName, givenName, phoneNumber);
+		return uid;
+	}
+	
+	@Override
+	public void updateUserWithUsername(String username, Map<String, Object> updateParams) {
+		
+		CloudUser cloudUser = this.findUserByUsername(username);
+		String urlPath = "/v2/users/" + cloudUser.getMeta().getGuid().toString();
+		getRestTemplate().put(getUrl(urlPath), updateParams);
+		
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public List<CloudUser> getAllUsers() {
+		String urlPath = "/v2/users?inline-relations-depth=2";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUser> users = new ArrayList<CloudUser>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
+			UUID user_id = cloudUser.getMeta().getGuid();
+			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+			cloudUser.setName((String)userInfo.get("userName"));
+			cloudUser.setFamilyName((String)userInfo.get("familyName"));
+			cloudUser.setGivenName((String)userInfo.get("givenName"));
+			List<String> emailList = new ArrayList<String>();
+			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+			for (Map<String, String> email : emails) {				
+				emailList.add((String)email.get("value"));
+			}
+			cloudUser.setEmails(emailList);
+			
+			List<String> phoneList = new ArrayList<String>();
+			if (userInfo.get("phoneNumbers") != null) {
+				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+				for (Map<String, String> phone : phones) {
+					phoneList.add((String)phone.get("value"));
+				}
+				cloudUser.setPhoneNumbers(phoneList);
+			}		
+			users.add(cloudUser);
+		}
+		return users;
+	}
+
+	@Override
+	public CloudUser findUserByUsername(String username) {
+		List<CloudUser> allUsers = this.getAllUsers();
+		for(CloudUser user : allUsers){
+			if (user.getName().equals(username)) {
+				return user;
+			}
+		}
+		return null;
+	}
+
+	@Override
+	public void associateUserWithOrg(CloudOrganization organization,
+			CloudUser user) {
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(user, "User must not be null");
+		UUID orgGuid = organization.getMeta().getGuid();
+		UUID userGuid = user.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/users/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateUserWithOrgRole(CloudOrganization organization,
+			CloudUser user, String roleName) {
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(roleName, "RoleName label must not be null");
+		UUID orgGuid = organization.getMeta().getGuid();
+		UUID userGuid = user.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + roleName + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);	
+	}
+
+	@Override
+	public void associateUserWithSpaceRole(CloudSpace space, CloudUser user,
+			String roleName) {
+		Assert.notNull(space, "Space must not be null");
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(roleName, "RoleName must not be null");
+		UUID spaceGuid = space.getMeta().getGuid();
+		UUID userGuid = user.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + roleName + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateOrgWithUser(CloudUser user,
+			CloudOrganization organization) {
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(user, "User must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/organizations/" + orgGuid;
+		getRestTemplate().put(getUrl(urlPath), null);		
+	}
+	
+	@Override
+	public void associataSpaceWithUser(CloudUser user, CloudSpace space) {
+		String userId = user.getMeta().getGuid().toString();
+		String spaceId = space.getMeta().getGuid().toString();
+		String urlPath = "/v2/users/" + userId + "/spaces/" + spaceId;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateOrgRoleWithUser(CloudUser user,
+			CloudOrganization organization, String roleName) {
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(roleName, "RoleName must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/" + roleName + "/" + orgGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateSpaceRoleWithUser(CloudUser user, CloudSpace space,
+			String roleName) {
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(space, "Space must not be null");
+		Assert.notNull(roleName, "RoleName must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID spaceGuid = space.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/" + roleName + "/" + spaceGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void removeUserFormOrg(CloudOrganization organization, CloudUser user) {
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(user, "User must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/users/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeUserFromRoleOrg(CloudOrganization organization,
+			CloudUser user, String roleName) {
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(roleName, "RoleName label must not be null");
+		UUID orgGuid = organization.getMeta().getGuid();
+		UUID userGuid = user.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + roleName + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeUserFromRoleSpace(CloudSpace space, CloudUser user,
+			String roleName) {
+		Assert.notNull(space, "Space must not be null");
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(roleName, "RoleName must not be null");
+		UUID spaceGuid = space.getMeta().getGuid();
+		UUID userGuid = user.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + roleName + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));	
+	}
+
+	@Override
+	public void removeOrgFromUser(CloudUser user, CloudOrganization organization) {
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(user, "User must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/organizations/" + orgGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeRoleOrgFromUser(CloudUser user,
+			CloudOrganization organization, String roleName) {
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(organization, "Organization must not be null");
+		Assert.notNull(roleName, "RoleName must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/" + roleName + "/" + orgGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeRoleSpaceFromUser(CloudUser user, CloudSpace space,
+			String roleName) {
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(space, "Space must not be null");
+		Assert.notNull(roleName, "RoleName must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID spaceGuid = space.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/" + roleName + "/" + spaceGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeSpaceFromUser(CloudUser user, CloudSpace space) {
+		Assert.notNull(user, "User must not be null");
+		Assert.notNull(space, "Space must not be null");
+		UUID userGuid = user.getMeta().getGuid();
+		UUID spaceGuid = space.getMeta().getGuid();
+		String urlPath = "/v2/users/" + userGuid + "/spaces/" + spaceGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public List<CloudSpace> getSpaceFromOrgName(String orgName) {
+		Assert.notNull(orgName, "Org Name must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/spaces?inline-relations-depth=1";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudSpace> spaces = new ArrayList<CloudSpace>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudSpace space = resourceMapper.mapResource(resource, CloudSpace.class);
+			spaces.add(space);
+		}
+		return spaces;
+	}
+
+	@Override
+	public List<CloudApplication> getAppsFromSpaceName(String spaceGuid) {
+		Assert.notNull(spaceGuid, "Space Name must not be null");
+		String urlPath = "/v2/spaces/" + spaceGuid + "/apps?inline-relations-depth=1";		
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudApplication> apps = new ArrayList<CloudApplication>();
+		for (Map<String, Object> resource : resourceList) {
+			processApplicationResource(resource, true);
+			apps.add(mapCloudApplication(resource));
+		}
+		return apps;
+	}
+
+	@Override
+	public void approveUser(String userName, String displayName,
+			String member_type, String authorities) {
+		oauthClient.approveUser(userName, displayName, member_type, authorities);		
+	}
+
+	@Override
+	public void updateGroupMember(String user, String displayName,
+			String member_type, Boolean isDelete) {
+		oauthClient.updateGroupMember(user, displayName, member_type, isDelete);		
+	}
+
+	@Override
+	public List<CloudDomain> getDomainFromOrgName(String orgName) {
+		Assert.notNull(orgName, "orgName Name must not be null");
+		CloudOrganization orgByName = this.getOrgByName(orgName, true);
+		String orgGuid = orgByName.getMeta().getGuid().toString();
+		String urlPath = "/v2/organizations/" + orgGuid + "/domains?inline-relations-depth=1";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudDomain> domains = new ArrayList<CloudDomain>();
+		for (Map<String,Object> resource : resourceList) {
+			CloudDomain domain = resourceMapper.mapResource(resource, CloudDomain.class);
+			domains.add(domain);
+		}
+		return domains;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public CloudUser getUsersummaryFromUserName(String userName) {
+		String userGuid = oauthClient.getUserIdByName(userName);
+		Map<String, Object> userInfo = oauthClient.getUserInfo(userGuid);
+		String urlPath = "/v2/users/" + userGuid + "/summary";
+		ResponseEntity<String> resource = restTemplate.getForEntity(cloudControllerUrl + urlPath, String.class);
+		String userinfos = resource.getBody();
+		Map<String, Object> userMap = JsonUtil.convertJsonToMap(userinfos);
+		CloudUser user = resourceMapper.mapResource(userMap, CloudUser.class);
+		user.setName((String)userInfo.get("userName"));
+		user.setFamilyName((String)userInfo.get("familyName"));
+		user.setGivenName((String)userInfo.get("givenName"));
+		List<String> emailList = new ArrayList<String>();
+		List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+		for (Map<String, String> email : emails) {				
+			emailList.add((String)email.get("value"));
+		}
+		user.setEmails(emailList);
+		
+		List<String> phoneList = new ArrayList<String>();
+		if (userInfo.get("phoneNumbers") != null) {
+			List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+			for (Map<String, String> phone : phones) {
+				phoneList.add((String)phone.get("value"));
+			}
+			user.setPhoneNumbers(phoneList);
+		}
+		return user;
+	}
+
+	@Override
+	public Boolean isMemberByUserAndDisplayName(String user_id,
+			String displayName) {
+		return oauthClient.isMemberByUserAndDisplayName(user_id, displayName);
+	}
+
+	@Override
+	public Boolean isReaderByUserAndDisplayName(String user_id,
+			String displayName) {
+		return oauthClient.isReaderByUserAndDisplayName(user_id, displayName);
+	}
+
+	@Override
+	public Boolean isWriterByUserAndDisplayName(String user_id,
+			String displayName) {
+		return oauthClient.isWriterByUserAndDisplayName(user_id, displayName);
+	}
+
+	@Override
+	public List<CloudUser> getUserWithFileters(Map<String, Object> filters) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public List<CloudSpaceQuota> getSpaceQuotas() {
+		String urlPath = "/v2/space_quota_definitions";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudSpaceQuota> spaceQuotas = new ArrayList<CloudSpaceQuota>();
+		for(Map<String, Object> resource : resourceList){
+			CloudSpaceQuota spaceQuota = resourceMapper.mapResource(resource, CloudSpaceQuota.class);
+			spaceQuotas.add(spaceQuota);
+		}
+		return spaceQuotas;
+	}
+
+	@Override
+	public void createSpaceQuota(CloudSpaceQuota spaceQuota) {
+		String urlPath = "/v2/space_quota_definitions";
+		HashMap<String, Object> spaceQuotaRequest = new HashMap<String, Object>();
+		spaceQuotaRequest.put("name", spaceQuota.getName());
+		spaceQuotaRequest.put("non_basic_services_allowed", spaceQuota.isNonBasicServicesAllowed());
+		spaceQuotaRequest.put("total_services", spaceQuota.getTotalServices());
+		spaceQuotaRequest.put("total_routes", spaceQuota.getTotalRoutes());
+		spaceQuotaRequest.put("memory_limit", spaceQuota.getMemoryLimit());
+		spaceQuotaRequest.put("organization_guid", spaceQuota.getOrganization_guid());
+		getRestTemplate().postForObject(getUrl(urlPath), spaceQuotaRequest, String.class);		
+	}
+
+	@Override
+	public void removeSpaceFromSpaceQuota(String spaceQuotaName,
+			String spaceName , String orgName) {
+		List<CloudSpace> spaces = getSpaceFromOrgName(orgName);
+		for(CloudSpace space : spaces){
+			if(space.getName().equals(spaceName)){
+				List<CloudSpaceQuota> spaceQuotas = getSpaceQuotas();
+				for(CloudSpaceQuota spaceQuota : spaceQuotas){
+					if(spaceQuota.getName().equals(spaceQuotaName)){
+						String urlPath = "/v2/space_quota_definitions/" + spaceQuota.getMeta().getGuid().toString() + 
+								"/spaces/" + space.getMeta().getGuid().toString();
+						getRestTemplate().delete(getUrl(urlPath));
+					}
+				}
+			}
+		}
+	}
+
+	@Override
+	public void associateSpaceWithSpaceQuota(String spaceQuotaName,
+			String spaceName, String orgName) {
+		List<CloudSpace> spaces = getSpaceFromOrgName(orgName);
+		for(CloudSpace space : spaces){
+			if(space.getName().equals(spaceName)){
+				List<CloudSpaceQuota> spaceQuotas = getSpaceQuotas();
+				for(CloudSpaceQuota spaceQuota : spaceQuotas){
+					if(spaceQuota.getName().equals(spaceQuotaName)){
+						String urlPath = "/v2/space_quota_definitions/" + spaceQuota.getMeta().getGuid().toString() + 
+								"/spaces/" + space.getMeta().getGuid().toString();
+						getRestTemplate().put(getUrl(urlPath), null);
+					}
+				}
+			}
+		}	
+	}
+
+	@Override
+	public void updateSpaceQuota(CloudSpaceQuota spaceQuota) {
+		String urlPath = "/v2/space_quota_definitions/" + spaceQuota.getMeta().getGuid().toString();
+		List<CloudSpaceQuota> spaceQuotas = getSpaceQuotas();
+		for(CloudSpaceQuota quota : spaceQuotas){
+			if(quota.getMeta().getGuid().toString().equals(spaceQuota.getMeta().getGuid().toString())){
+				HashMap<String, Object> spaceQuotaRequest = new HashMap<String, Object>();
+				spaceQuotaRequest.put("name", spaceQuota.getName());
+				spaceQuotaRequest.put("non_basic_services_allowed", spaceQuota.isNonBasicServicesAllowed());
+				spaceQuotaRequest.put("total_services", spaceQuota.getTotalServices());
+				spaceQuotaRequest.put("total_routes", spaceQuota.getTotalRoutes());
+				spaceQuotaRequest.put("memory_limit", spaceQuota.getMemoryLimit());
+				spaceQuotaRequest.put("organization_guid", spaceQuota.getOrganization_guid());
+				getRestTemplate().put(getUrl(urlPath), spaceQuotaRequest);
+			}
+		}		
+	}
+
+	@Override
+	public void deleteSpaceQuota(String spaceQuotaName) {
+		List<CloudSpaceQuota> spaceQuotas = getSpaceQuotas();
+		for(CloudSpaceQuota spaceQuota : spaceQuotas){
+			if(spaceQuota.getName().equals(spaceQuotaName)){
+				String urlPath = "/v2/space_quota_definitions/" + spaceQuota.getMeta().getGuid().toString();
+				getRestTemplate().delete(getUrl(urlPath));
+			}
+		}		
+	}
+
+	@Override
+	public List<CloudSpaceQuota> getSpaceQuotaWithSpace(String orgName,
+			String spaceName) {
+		List<CloudSpaceQuota> spaceQuotaList = new ArrayList<CloudSpaceQuota>();
+		List<CloudSpace> spaces = getSpaceFromOrgName(orgName);
+		for(CloudSpace space : spaces){
+			if(space.getName().equals(spaceName)){
+				List<CloudSpaceQuota> spaceQuotas = getSpaceQuotas();
+				for(CloudSpaceQuota spaceQuota : spaceQuotas){
+					spaceQuotaList.add(spaceQuota);
+				}
+			}
+		}
+		return spaceQuotaList;
+	}
+
+	@Override
+	public List<CloudSpace> getSpacesWithSpaceQuota(String spaceQuotaName) {
+		List<CloudSpaceQuota> spaceQuotas = getSpaceQuotas();
+		List<CloudSpace> spaces = new ArrayList<CloudSpace>();
+		for(CloudSpaceQuota spaceQuota : spaceQuotas){
+			if(spaceQuota.getName().endsWith(spaceQuotaName)){
+				String urlPath = "/v2/space_quota_definitions/" + spaceQuota.getMeta().getGuid().toString() + "/spaces?inline-relations-depth=1";
+				List<Map<String, Object>> resourceList = getAllResources(urlPath, null);				
+				for (Map<String, Object> resource : resourceList) {
+					spaces.add(resourceMapper.mapResource(resource, CloudSpace.class));
+				}			
+			}
+		}		
+		return spaces;
+	}
+
+	@Override
+	public void createOrganization(String organizationName, String orgQuotaName) {
+		HashMap<String, Object> organizationRequest = new HashMap<String, Object>();
+		if (orgQuotaName == null) {
+			organizationRequest.put("name", organizationName);
+		}else{
+			CloudQuota cloudQuota = getQuotaByName(orgQuotaName, true);
+			organizationRequest.put("name", organizationName);
+			organizationRequest.put("quota_definition_guid", cloudQuota.getMeta().getGuid().toString());
+		}
+		getRestTemplate().postForObject(getUrl("/v2/organizations"), organizationRequest, String.class);
+	}
+
+	@Override
+	public void deleteOrganization(String organizationName) {
+		CloudOrganization cloudOrganization = getOrgByName(organizationName, true);
+		String urlPath = "/v2/organizations/" + cloudOrganization.getMeta().getGuid().toString();
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void updateOrganization(CloudOrganization cloudOrganization, String orgQuotaName) {
+		List<CloudOrganization> organizations = getOrganizations();
+		boolean isExist = false;
+		for(CloudOrganization org : organizations){
+			if (org.getMeta().getGuid().toString().equals(cloudOrganization.getMeta().getGuid().toString())) {
+				isExist = true;
+			}
+		}
+		Assert.isTrue(isExist, "Cannot update organization if it does not first exist");
+
+		CloudQuota cloudQuota = getQuotaByName(orgQuotaName, true);	
+		HashMap<String, Object> organizationRequest = new HashMap<String, Object>();
+		organizationRequest.put("name", cloudOrganization.getName());
+		organizationRequest.put("quota_definition_guid", cloudQuota.getMeta().getGuid().toString());
+		String urlPath = "/v2/organizations/" + cloudOrganization.getMeta().getGuid().toString();
+		getRestTemplate().put(getUrl(urlPath), organizationRequest, String.class);
+	}
+
+	@Override
+	public void createSpace(String spaceName, String organizationName) {
+		
+		CloudOrganization cloudOrganization = getOrgByName(organizationName, true);
+		Boolean notExist = true;
+		List<CloudSpace> spaces = getSpaceFromOrgName(organizationName);
+		for (CloudSpace space : spaces) {
+			if(space.getName().equals(spaceName)){
+				notExist = false;
+			}
+		}
+		Assert.isTrue(notExist,"Cannot create space if it first exist");
+		HashMap<String, Object> spaceRequest = new HashMap<String, Object>();
+		spaceRequest.put("name", spaceName);
+		spaceRequest.put("organization_guid", cloudOrganization.getMeta().getGuid().toString());
+		getRestTemplate().postForObject(getUrl("/v2/spaces"), spaceRequest, String.class);
+	}
+
+	@Override
+	public void deleteSpace(String spaceName, String organizationName) {
+		List<CloudSpace> spaces = getSpaceFromOrgName(organizationName);
+		for(CloudSpace space : spaces){
+			if (space.getName().equals(spaceName)) {
+				String urlPath = "/v2/spaces/" + space.getMeta().getGuid().toString();
+				getRestTemplate().delete(getUrl(urlPath));
+			}
+		}		
+	}
+
+	@Override
+	public void updateSpace(CloudSpace cloudSpace, String organizationName) {
+		
+		CloudOrganization cloudOrganization = getOrgByName(organizationName, true);
+		boolean isExist = false;
+		List<CloudSpace> spaces = getSpaceFromOrgName(organizationName);
+		for (CloudSpace space : spaces) {
+			if (space.getMeta().getGuid().toString().equals(cloudSpace.getMeta().getGuid().toString())) {
+				isExist = true;
+			}
+		}
+		Assert.isTrue(isExist, "Cannot update space if it does not first exist");
+		
+		HashMap<String, Object> spaceRequest = new HashMap<String, Object>();
+		spaceRequest.put("name", cloudSpace.getName());
+		spaceRequest.put("organization_guid", cloudOrganization.getMeta().getGuid().toString());
+		String urlPath = "/v2/spaces/" + cloudSpace.getMeta().getGuid().toString();
+		getRestTemplate().put(getUrl(urlPath), spaceRequest, String.class);		
+	}
+
+	@Override
+	public List<CloudSecurityGroup> getSecurityGroups() {
+		String urlPath = "/v2/security_groups?inline-relations-depth=2";
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudSecurityGroup> cloudSecurityGroups = new ArrayList<CloudSecurityGroup>();
+		for (Map<String, Object> resource : resources) {
+			CloudSecurityGroup cloudSecurityGroup = resourceMapper.mapResource(resource, CloudSecurityGroup.class);
+			cloudSecurityGroups.add(cloudSecurityGroup);
+		}
+		return cloudSecurityGroups;
+	}
+	
+	@Override
+	public List<CloudSecurityGroup> getSecurityGroupsForStaging() {
+		String urlPath = "/v2/config/staging_security_groups?inline-relations-depth=2";
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudSecurityGroup> cloudSecurityGroups = new ArrayList<CloudSecurityGroup>();
+		for (Map<String, Object> resource : resources) {
+			CloudSecurityGroup cloudSecurityGroup = resourceMapper.mapResource(resource, CloudSecurityGroup.class);
+			cloudSecurityGroups.add(cloudSecurityGroup);
+		}
+		return cloudSecurityGroups;
+	}
+
+	@Override
+	public List<CloudSecurityGroup> getSecurityGroupForRunningApps() {
+		String urlPath = "/v2/config/running_security_groups?inline-relations-depth=2";
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudSecurityGroup> cloudSecurityGroups = new ArrayList<CloudSecurityGroup>();
+		for (Map<String, Object> resource : resources) {
+			CloudSecurityGroup cloudSecurityGroup = resourceMapper.mapResource(resource, CloudSecurityGroup.class);
+			cloudSecurityGroups.add(cloudSecurityGroup);
+		}
+		return cloudSecurityGroups;
+	}
+
+	@Override
+	public void createSecurityGroup(String name,
+			List<CloudSecurityRules> cloudSecurityRules, String spaceName,
+			String organizationName) {
+		
+		List<Map<String,Object>> rules = new ArrayList<Map<String,Object>>();
+		for (CloudSecurityRules cloudSecurityRule : cloudSecurityRules) {
+			if (cloudSecurityRule.getProtocol().equals("icmp")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				ruleMap.put("type", cloudSecurityRule.getType());
+				ruleMap.put("code", cloudSecurityRule.getCode());
+				rules.add(ruleMap);
+			}
+			if (cloudSecurityRule.getProtocol().equals("tcp")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				ruleMap.put("ports", cloudSecurityRule.getPorts());
+				ruleMap.put("log", cloudSecurityRule.getLog());
+				rules.add(ruleMap);
+			}
+			if (cloudSecurityRule.getProtocol().equals("udp")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				ruleMap.put("ports", cloudSecurityRule.getPorts());
+				rules.add(ruleMap);
+			}
+			if (cloudSecurityRule.getProtocol().equals("all")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				rules.add(ruleMap);
+			}
+		}
+		
+		HashMap<String, Object> securityGroupRequest = new HashMap<String, Object>();
+		securityGroupRequest.put("name", name);
+		securityGroupRequest.put("rules", rules);
+		
+		getRestTemplate().postForObject(getUrl("/v2/security_groups"), securityGroupRequest, String.class);		
+	}
+
+	@Override
+	public void setSpaceWithSecurityGroup(String securityName,
+			String spaceName, String orgName) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		List<CloudSpace> spaces = getSpaceFromOrgName(orgName);
+		for (CloudSecurityGroup cloudSecurityGroup : securityGroups) {
+			if (cloudSecurityGroup.getName().equals(securityName)) {
+				for (CloudSpace space : spaces) {
+					if (space.getName().equals(spaceName)) {
+						String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString() + "/spaces/" + space.getMeta().getGuid().toString();
+						getRestTemplate().put(getUrl(urlPath), null);
+					}
+				}
+			}
+		}		
+	}
+
+	@Override
+	public void deleteSecurityGroup(String securityName) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		for (CloudSecurityGroup cloudSecurityGroup : securityGroups) {
+			if (cloudSecurityGroup.getName().equals(securityName)) {
+				String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString();
+				getRestTemplate().delete(getUrl(urlPath));
+			}
+		}		
+	}
+
+	@Override
+	public void deleteSpaceFromSecurityGroup(String securityName,
+			String spaceName, String orgName) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		List<CloudSpace> spaces = getSpaceFromOrgName(orgName);
+		for (CloudSecurityGroup cloudSecurityGroup : securityGroups) {
+			if (cloudSecurityGroup.getName().equals(securityName)) {
+				for (CloudSpace space : spaces) {
+					if (space.getName().equals(spaceName)) {
+						String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString() + "/spaces/" + space.getMeta().getGuid().toString();
+						getRestTemplate().delete(getUrl(urlPath));
+					}
+				}
+			}
+		}
+		
+	}
+	
+	@Override
+	public void deleteSpaceFromSecurityGroup(String securityName,
+			String spaceGuid) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		for (CloudSecurityGroup cloudSecurityGroup : securityGroups) {
+			if (cloudSecurityGroup.getName().equals(securityName)) {
+				String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString() + "/spaces/" + spaceGuid;
+				getRestTemplate().delete(getUrl(urlPath));
+			}
+		}
+		
+	}
+
+	@Override
+	public void updateSecurityGroup(CloudSecurityGroup cloudSecurityGroup) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		Boolean isExist = false;
+		for (CloudSecurityGroup securityGroup : securityGroups) {
+			if (securityGroup.getMeta().getGuid().toString().equals(cloudSecurityGroup.getMeta().getGuid().toString())) {
+				isExist = true;
+			}
+		}
+		if (isExist) {
+			Assert.isTrue(isExist, "Cannot update CloudSecurityGroup if it does not first exist");
+		}
+		
+		List<Map<String,Object>> rules = new ArrayList<Map<String,Object>>();
+		List<CloudSecurityRules> cloudSecurityRules = cloudSecurityGroup.getRules();
+		for (CloudSecurityRules cloudSecurityRule : cloudSecurityRules) {
+			if (cloudSecurityRule.getProtocol().equals("icmp")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				ruleMap.put("type", cloudSecurityRule.getType());
+				ruleMap.put("code", cloudSecurityRule.getCode());
+				rules.add(ruleMap);
+			}
+			if (cloudSecurityRule.getProtocol().equals("tcp")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				ruleMap.put("ports", cloudSecurityRule.getPorts());
+				ruleMap.put("log", cloudSecurityRule.getLog());
+				rules.add(ruleMap);
+			}
+			if (cloudSecurityRule.getProtocol().equals("udp")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				ruleMap.put("ports", cloudSecurityRule.getPorts());
+				rules.add(ruleMap);
+			}
+			if (cloudSecurityRule.getProtocol().equals("all")) {
+				Map<String,Object> ruleMap = new HashMap<String, Object>();
+				ruleMap.put("protocol", cloudSecurityRule.getProtocol());
+				ruleMap.put("destination", cloudSecurityRule.getDestination());
+				rules.add(ruleMap);
+			}
+		}
+		
+		HashMap<String, Object> securityGroupRequest = new HashMap<String, Object>();
+		securityGroupRequest.put("name", cloudSecurityGroup.getName());
+		securityGroupRequest.put("rules", rules);
+		
+		String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString();
+		
+		getRestTemplate().put(getUrl(urlPath), securityGroupRequest);
+		
+	}
+
+	@Override
+	public List<CloudSpace> getSpaceForSecurityGroup(String securityName) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		List<CloudSpace> spaces = new ArrayList<CloudSpace>();
+		for (CloudSecurityGroup cloudSecurityGroup : securityGroups) {
+			if (cloudSecurityGroup.getName().equals(securityName)) {
+				String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString() + "/spaces?inline-relations-depth=1";
+				List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+				for (Map<String, Object> resource : resourceList) {
+					spaces.add(resourceMapper.mapResource(resource, CloudSpace.class));
+				}				
+			}
+		}
+		return spaces;
+	}
+
+	@Override
+	public void setSecurityGroupForStaging(CloudSecurityGroup cloudSecurityGroup) {
+		String urlPath = "/v2/config/staging_security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString();
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void setSecurityGroupForRunningApps(
+			CloudSecurityGroup cloudSecurityGroup) {
+		String urlPath = "/v2/config/running_security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString();
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void deleteSecurityForStaging(CloudSecurityGroup cloudSecurityGroup) {
+		String urlPath = "/v2/config/staging_security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString();
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void deleteSecurityGroupForRunningApps(
+			CloudSecurityGroup cloudSecurityGroup) {
+		String urlPath = "/v2/config/running_security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString();
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void setSpaceWithSecurityGroup(String securityName, String spaceGuid) {
+		List<CloudSecurityGroup> securityGroups = getSecurityGroups();
+		
+		for (CloudSecurityGroup cloudSecurityGroup : securityGroups) {
+			if (cloudSecurityGroup.getName().equals(securityName)) {				
+				String urlPath = "/v2/security_groups/" + cloudSecurityGroup.getMeta().getGuid().toString() + "/spaces/" + spaceGuid;
+				getRestTemplate().put(getUrl(urlPath), null);
+				break;
+			}
+		}
+	}
+
+	@Override
+	public List<CloudEvent> getAllEvents() {
+		String urlPath = "/v2/events";
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudEvent> events = new ArrayList<CloudEvent>();
+		for (Map<String, Object> resource : resources) {
+			CloudEvent cloudEvent = resourceMapper.mapResource(resource, CloudEvent.class);
+			events.add(cloudEvent);
+		}
+		return events;
+	}
+
+	@Override
+	public List<CloudEvent> getEventsByEventType(String eventType) {
+		String urlPath = "/v2/events/?q=type:" + eventType;
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudEvent> events = new ArrayList<CloudEvent>();
+		for (Map<String, Object> resource : resources) {
+			CloudEvent cloudEvent = resourceMapper.mapResource(resource, CloudEvent.class);
+			events.add(cloudEvent);
+		}
+		return events;
+	}
+
+	@Override
+	public List<CloudEvent> getEventsByActeeAndTimestamp(String actee,
+			String sign, String timestamp) {
+		String urlPath = "/v2/events/?q=actee:" + actee + "&q=timestamp" + sign + timestamp;
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudEvent> events = new ArrayList<CloudEvent>();
+		for (Map<String, Object> resource : resources) {
+			CloudEvent cloudEvent = resourceMapper.mapResource(resource, CloudEvent.class);
+			events.add(cloudEvent);
+		}
+		return events;
+	}
+
+	@Override
+	public void deleteAppInstanceWithIndex(String appName, int index) {
+		UUID appId = getAppId(appName);
+		String urlPath = "/v2/apps/" + appId.toString() + "/instances/" + index;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void deleteUserWithUserName(String username) {
+		CloudUser cloudUser = getUsersummaryFromUserName(username);
+		if (cloudUser != null) {
+			String urlPath = "/v2/users/" + cloudUser.getMeta().getGuid().toString();
+			getRestTemplate().delete(getUrl(urlPath));
+		}
+	}
+
+	@Override
+	public byte[] downloadAppWithAppName(String appName) {
+		UUID appId = getAppId(appName);
+		String urlPath = "/v2/apps/" + appId.toString() + "/download";
+		ResponseEntity<byte[]> entity = getRestTemplate().getForEntity(getUrl(urlPath), byte[].class);
+		byte[] bytes = entity.getBody();
+		return bytes;
+	}
+
+	@Override
+	public List<CloudAdminBuildpack> getBuildpacks() {
+		String urlPath = "/v2/buildpacks";
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudAdminBuildpack> buildpacks = new ArrayList<CloudAdminBuildpack>();
+		for (Map<String, Object> resource : resources) {
+			CloudAdminBuildpack cloudAdminBuildpack = resourceMapper.mapResource(resource, CloudAdminBuildpack.class);
+			buildpacks.add(cloudAdminBuildpack);
+		}
+		return buildpacks;
+	}
+
+	
 }

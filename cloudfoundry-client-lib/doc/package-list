@@ -1,0 +1,9 @@
+loggregator
+org.cloudfoundry.client.lib
+org.cloudfoundry.client.lib.archive
+org.cloudfoundry.client.lib.domain
+org.cloudfoundry.client.lib.io
+org.cloudfoundry.client.lib.oauth2
+org.cloudfoundry.client.lib.rest
+org.cloudfoundry.client.lib.tokens
+org.cloudfoundry.client.lib.util

@@ -33,17 +33,23 @@ import org.cloudfoundry.client.lib.UploadStatusCallback;
 import org.cloudfoundry.client.lib.archive.ApplicationArchive;
 import org.cloudfoundry.client.lib.domain.ApplicationLog;
 import org.cloudfoundry.client.lib.domain.ApplicationStats;
+import org.cloudfoundry.client.lib.domain.CloudAdminBuildpack;
 import org.cloudfoundry.client.lib.domain.CloudApplication;
 import org.cloudfoundry.client.lib.domain.CloudDomain;
+import org.cloudfoundry.client.lib.domain.CloudEvent;
 import org.cloudfoundry.client.lib.domain.CloudInfo;
 import org.cloudfoundry.client.lib.domain.CloudOrganization;
 import org.cloudfoundry.client.lib.domain.CloudQuota;
 import org.cloudfoundry.client.lib.domain.CloudRoute;
+import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
+import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
+import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
+import org.cloudfoundry.client.lib.domain.CloudUser;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -234,4 +240,163 @@ public interface CloudControllerClient {
     void deleteQuota(String quotaName);
     
     void setQuotaToOrg(String orgName, String quotaName);
+
+	List<CloudUser> getUsersByOrgName(String orgName);
+
+	List<CloudUser> getUsersByOrgRole(String orgName, String roleName);
+
+	List<CloudUser> getUsersBySpaceRole(String spaceUUID, String roleName);
+
+	void createUser(String username, String password, String familyName, String givenName, String phoneNumber);
+
+	List<CloudUser> getAllUsers();
+
+	CloudUser findUserByUsername(String username);
+
+	void associateUserWithOrg(CloudOrganization organization, CloudUser user);
+
+	void associateUserWithOrgRole(CloudOrganization organization,
+			CloudUser user, String roleName);
+
+	void associateUserWithSpaceRole(CloudSpace space, CloudUser user,
+			String roleName);
+
+	void associateOrgWithUser(CloudUser user, CloudOrganization organization);
+
+	void associateOrgRoleWithUser(CloudUser user,
+			CloudOrganization organization, String roleName);
+
+	void associateSpaceRoleWithUser(CloudUser user, CloudSpace space,
+			String roleName);
+
+	void removeUserFormOrg(CloudOrganization organization, CloudUser user);
+
+	void removeUserFromRoleOrg(CloudOrganization organization, CloudUser user,
+			String roleName);
+
+	void removeUserFromRoleSpace(CloudSpace space, CloudUser user,
+			String roleName);
+
+	void removeOrgFromUser(CloudUser user, CloudOrganization organization);
+
+	void removeRoleOrgFromUser(CloudUser user, CloudOrganization organization,
+			String roleName);
+
+	void removeRoleSpaceFromUser(CloudUser user, CloudSpace space,
+			String roleName);
+
+	void removeSpaceFromUser(CloudUser user, CloudSpace space);
+
+	List<CloudSpace> getSpaceFromOrgName(String orgName);
+
+	List<CloudApplication> getAppsFromSpaceName(String spaceGuid);
+
+	void approveUser(String userName, String displayName, String member_type,
+			String authorities);
+
+	void updateGroupMember(String userName, String displayName,
+			String member_type, Boolean isDelete);
+
+	List<CloudDomain> getDomainFromOrgName(String orgName);
+
+	CloudUser getUsersummaryFromUserName(String userName);
+
+	Boolean isMemberByUserAndDisplayName(String user_id, String displayName);
+
+	Boolean isReaderByUserAndDisplayName(String user_id, String displayName);
+
+	Boolean isWriterByUserAndDisplayName(String user_id, String displayName);
+
+	void associataSpaceWithUser(CloudUser user, CloudSpace space);
+
+	String registerUserOnly(String username, String password,
+			String familyName, String givenName, String phoneNumber);
+
+	void updateUserWithUsername(String username,
+			Map<String, Object> updateParams);
+
+	List<CloudUser> getUserWithFileters(Map<String, Object> filters);
+
+	List<CloudSpaceQuota> getSpaceQuotas();
+
+	void createSpaceQuota(CloudSpaceQuota spaceQuota);
+
+	void removeSpaceFromSpaceQuota(String spaceQuotaName,
+			String spaceName, String orgName);
+
+	void associateSpaceWithSpaceQuota(String spaceQuotaName, String spaceName,
+			String orgName);
+
+	void updateSpaceQuota(CloudSpaceQuota spaceQuota);
+
+	void deleteSpaceQuota(String spaceQuotaName);
+
+	List<CloudSpaceQuota> getSpaceQuotaWithSpace(String orgName,
+			String spaceName);
+
+	List<CloudSpace> getSpacesWithSpaceQuota(String orgName);
+
+	void createOrganization(String organizationName, String orgQuotaName);
+
+	void deleteOrganization(String organizationName);
+
+	void updateOrganization(CloudOrganization cloudOrganization, String orgQuotaName);
+
+	void createSpace(String spaceName, String organizationName);
+
+	void deleteSpace(String spaceName, String organizationName);
+
+	void updateSpace(CloudSpace cloudSpace, String organizationName);
+
+	List<CloudSecurityGroup> getSecurityGroups();
+
+	void createSecurityGroup(String name,
+			List<CloudSecurityRules> cloudSecurityRules, String spaceName,
+			String organizationName);
+
+	void setSpaceWithSecurityGroup(String securityName, String spaceName,
+			String orgName);
+
+	void deleteSecurityGroup(String securityName);
+
+	void deleteSpaceFromSecurityGroup(String securityName, String spaceName,
+			String orgName);
+
+	void updateSecurityGroup(CloudSecurityGroup cloudSecurityGroup);
+
+	List<CloudSpace> getSpaceForSecurityGroup(String securityName);
+
+	void setSecurityGroupForStaging(CloudSecurityGroup cloudSecurityGroup);
+
+	void setSecurityGroupForRunningApps(CloudSecurityGroup cloudSecurityGroup);
+
+	void deleteSecurityForStaging(CloudSecurityGroup cloudSecurityGroup);
+
+	void deleteSecurityGroupForRunningApps(CloudSecurityGroup cloudSecurityGroup);
+
+	List<CloudSecurityGroup> getSecurityGroupsForStaging();
+
+	List<CloudSecurityGroup> getSecurityGroupForRunningApps();
+
+	void deleteSpaceFromSecurityGroup(String securityName, String spaceGuid);
+
+	void setSpaceWithSecurityGroup(String securityName, String spaceGuid);
+
+	List<CloudEvent> getAllEvents();
+
+	List<CloudEvent> getEventsByEventType(String eventType);
+
+	List<CloudEvent> getEventsByActeeAndTimestamp(String actee, String sign,
+			String timestamp);
+
+	List<CloudService> getServicesFromSpace(String spaceGuid);
+
+	void deleteAppInstanceWithIndex(String appName, int index);
+
+	void deleteUserWithUserName(String username);
+
+	byte[] downloadAppWithAppName(String appName);
+
+	List<CloudAdminBuildpack> getBuildpacks();
+
 }

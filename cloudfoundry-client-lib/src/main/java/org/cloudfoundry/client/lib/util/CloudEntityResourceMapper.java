@@ -16,26 +16,33 @@
 
 package org.cloudfoundry.client.lib.util;
 
-import org.cloudfoundry.client.lib.domain.CloudApplication;
-import org.cloudfoundry.client.lib.domain.CloudDomain;
-import org.cloudfoundry.client.lib.domain.CloudEntity;
-import org.cloudfoundry.client.lib.domain.CloudOrganization;
-import org.cloudfoundry.client.lib.domain.CloudQuota;
-import org.cloudfoundry.client.lib.domain.CloudRoute;
-import org.cloudfoundry.client.lib.domain.CloudService;
-import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
-import org.cloudfoundry.client.lib.domain.CloudServicePlan;
-import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
-import org.cloudfoundry.client.lib.domain.CloudSpace;
-import org.cloudfoundry.client.lib.domain.CloudStack;
-import org.cloudfoundry.client.lib.domain.Staging;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import org.cloudfoundry.client.lib.domain.CloudAdminBuildpack;
+import org.cloudfoundry.client.lib.domain.CloudApplication;
+import org.cloudfoundry.client.lib.domain.CloudDomain;
+import org.cloudfoundry.client.lib.domain.CloudEntity;
+import org.cloudfoundry.client.lib.domain.CloudEvent;
+import org.cloudfoundry.client.lib.domain.CloudOrganization;
+import org.cloudfoundry.client.lib.domain.CloudQuota;
+import org.cloudfoundry.client.lib.domain.CloudRoute;
+import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
+import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
+import org.cloudfoundry.client.lib.domain.CloudService;
+import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
+import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
+import org.cloudfoundry.client.lib.domain.CloudServicePlan;
+import org.cloudfoundry.client.lib.domain.CloudSpace;
+import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
+import org.cloudfoundry.client.lib.domain.CloudStack;
+import org.cloudfoundry.client.lib.domain.CloudUser;
+import org.cloudfoundry.client.lib.domain.Staging;
 
 /**
  * Class handling the mapping of the cloud domain objects
@@ -87,8 +94,150 @@ public class CloudEntityResourceMapper {
 		if (targetClass == CloudQuota.class) {
             return (T) mapQuotaResource(resource);
         }
+		if (targetClass == CloudUser.class) {
+			return (T) mapUserResource(resource);
+		}
+		if (targetClass == CloudSpaceQuota.class) {
+			return (T) mapSpaceQuotaResource(resource);
+		}
+		if (targetClass == CloudSecurityGroup.class) {
+			return (T) mapSecurityGroupResource(resource);
+		}
+		if (targetClass == CloudEvent.class) {
+			return (T) mapCloudEventResource(resource);
+		}
+		if (targetClass == CloudAdminBuildpack.class) {
+			return (T) mapCloudAdminBuildpackResource(resource);
+		}
 		throw new IllegalArgumentException(
 				"Error during mapping - unsupported class for entity mapping " + targetClass.getName());
+	}
+
+	private CloudAdminBuildpack mapCloudAdminBuildpackResource(Map<String, Object> resource) {
+		int position= (int) getEntity(resource).get("position");
+		Boolean enabled = (Boolean) getEntity(resource).get("enabled");
+		Boolean locked = (Boolean) getEntity(resource).get("locked");
+		String filename = (String) getEntity(resource).get("filename");
+		return new CloudAdminBuildpack(getMeta(resource), getNameOfResource(resource), filename, position, enabled, locked);
+	}
+
+	@SuppressWarnings("unchecked")
+	private CloudEvent mapCloudEventResource(Map<String, Object> resource) {
+		String type = (String) getEntity(resource).get("type");
+		String actor = (String) getEntity(resource).get("actor");
+		String actor_type = (String) getEntity(resource).get("actor_type");
+		String actor_name = (String) getEntity(resource).get("actor_name");
+		String actee = (String) getEntity(resource).get("actee");
+		String actee_type = (String) getEntity(resource).get("actee_type");
+		String actee_name = (String) getEntity(resource).get("actee_name");
+		String timestamp = (String) getEntity(resource).get("timestamp");
+		String space_guid = (String) getEntity(resource).get("space_guid");
+		String organization_guid = (String) getEntity(resource).get("organization_guid");
+		LinkedHashMap<String, Object> metadataMap = (LinkedHashMap<String, Object>) getEntity(resource).get("metadata");
+		String description = "";
+		if (metadataMap.containsKey("request")) {
+			description = ((LinkedHashMap<String, Object>)metadataMap.get("request")).toString().replaceAll("\\{\\}", "");
+		} else {
+			description = metadataMap.toString().replaceAll("\\{\\}", "");
+		}		
+		return new CloudEvent(getMeta(resource), getNameOfResource(resource), type, actor, actor_type, actor_name,
+				actee, actee_type, actee_name, timestamp, space_guid, organization_guid, description);
+	}
+
+	@SuppressWarnings("unchecked")
+	private CloudSecurityGroup mapSecurityGroupResource(Map<String, Object> resource) {
+		
+		Boolean running_default = (Boolean) getEntity(resource).get("running_default");
+		Boolean staging_default = (Boolean) getEntity(resource).get("staging_default");
+		List<CloudSpace> cloudSpaces = new ArrayList<CloudSpace>();
+		if (getEntity(resource).get("spaces") != null){
+			cloudSpaces = getSpaceListByRole("spaces", resource);
+		} else {
+			cloudSpaces = null;
+		} 
+				
+		List<Map<String, Object>> rules = (List<Map<String, Object>>) getEntity(resource).get("rules");
+		List<CloudSecurityRules> cloudSecurityRules = new ArrayList<CloudSecurityRules>();
+		if (rules.size() != 0) {
+			for (Map<String, Object> rule : rules) {
+				if (rule.get("protocol").equals("icmp")) {
+					String protocol = (String)rule.get("protocol");
+					String destination = (String)rule.get("destination");
+					int type = (int) rule.get("type");
+					int code= (int) rule.get("code");
+					CloudSecurityRules securityRule = new CloudSecurityRules(protocol, destination, type, code);
+					cloudSecurityRules.add(securityRule);
+				}				
+				if (rule.get("protocol").equals("tcp")) {
+					String protocol = (String)rule.get("protocol");
+					String destination = (String)rule.get("destination");
+					String ports = (String)rule.get("ports");
+					Boolean log = (Boolean) rule.get("log");
+					CloudSecurityRules securityRule = new CloudSecurityRules(protocol, destination, ports, log);
+					cloudSecurityRules.add(securityRule);
+				}
+				if (rule.get("protocol").equals("udp")) {
+					String protocol = (String)rule.get("protocol");
+					String destination = (String)rule.get("destination");
+					String ports = (String)rule.get("ports");
+					CloudSecurityRules securityRule = new CloudSecurityRules(protocol, destination, ports);
+					cloudSecurityRules.add(securityRule);
+				}
+				if (rule.get("protocol").equals("all")) {
+					String protocol = (String)rule.get("protocol");
+					String destination = (String)rule.get("destination");
+					CloudSecurityRules securityRule = new CloudSecurityRules(protocol, destination);
+					cloudSecurityRules.add(securityRule);
+				}
+			}
+		}		
+		return new CloudSecurityGroup(getMeta(resource), getNameOfResource(resource), 
+				cloudSecurityRules, running_default, staging_default, cloudSpaces);
+	}
+
+	private CloudUser mapUserResource(Map<String, Object> resource) {
+		
+		
+		Boolean isAdmin = (Boolean) getEntity(resource).get("admin");
+		Boolean isActive = (Boolean) getEntity(resource).get("active");
+		
+		List<CloudOrganization> organizations = getOrgListByRole("organizations", resource);
+		List<CloudOrganization> managed_organizations = getOrgListByRole("managed_organizations", resource);
+		List<CloudOrganization> audited_organizations = getOrgListByRole("audited_organizations", resource);
+		
+		List<CloudSpace> spaces = getSpaceListByRole("spaces", resource);
+		List<CloudSpace> managed_spaces = getSpaceListByRole("managed_spaces", resource);
+		List<CloudSpace> audited_spaces = getSpaceListByRole("audited_spaces", resource);
+		
+		return new CloudUser(getMeta(resource), getNameOfResource(resource), isAdmin, isActive,organizations, managed_organizations, audited_organizations, spaces, managed_spaces, audited_spaces);
+	}
+	
+	private List<CloudOrganization> getOrgListByRole(String orgRole, Map<String, Object> resource){
+		List<Map<String, Object>> orgListResource = getEmbeddedResourceList(getEntity(resource),orgRole);
+		List<CloudOrganization> orgList = new ArrayList<CloudOrganization>();
+		if (orgListResource != null) {
+			for (Map<String, Object> orgMap : orgListResource) {
+				CloudOrganization mapOrganizationResource = mapOrganizationResource(orgMap);
+				orgList.add(mapOrganizationResource);
+			}
+		}else{
+			return null;
+		}
+		return orgList;
+	}
+	
+	private List<CloudSpace> getSpaceListByRole(String spaceRole, Map<String, Object> resource){
+		List<Map<String, Object>> spaceListResource = getEmbeddedResourceList(getEntity(resource), spaceRole);
+		List<CloudSpace> spaceList = new ArrayList<CloudSpace>();
+		if (spaceListResource != null) {
+			for (Map<String, Object> spaceMap : spaceListResource) {
+				CloudSpace mapSpaceResource = mapSpaceResource(spaceMap);
+				spaceList.add(mapSpaceResource);
+			}
+		}else{
+			return null;
+		}
+		return spaceList;
 	}
 
 	private CloudSpace mapSpaceResource(Map<String, Object> resource) {
@@ -106,10 +255,15 @@ public class CloudEntityResourceMapper {
                 "billing_enabled", Boolean.class);
 		Map<String, Object> quotaDefinition = getEmbeddedResource(resource,
                 "quota_definition");
+		List<CloudSpace> spaces = getSpaceListByRole("spaces", resource);
 		CloudQuota quota = null;
 		if (quotaDefinition != null) {
 			quota = mapQuotaResource(quotaDefinition);
         }
+		if(spaces != null){
+			return new CloudOrganization(getMeta(resource),
+                getNameOfResource(resource), quota,billingEnabled, spaces);
+		}
         return new CloudOrganization(getMeta(resource),
                 getNameOfResource(resource), quota,billingEnabled);
     }
@@ -119,8 +273,11 @@ public class CloudEntityResourceMapper {
                 "non_basic_services_allowed", Boolean.class);
         int totalServices = getEntityAttribute(resource, "total_services",
                 Integer.class);
-        int totalRoutes = getEntityAttribute(resource, "total_routes",
-                Integer.class);
+        int totalRoutes = 4;
+        if (resource.get("total_routes") != null) {
+        	totalRoutes = getEntityAttribute(resource, "total_routes",
+                    Integer.class);
+        }   
         long memoryLimit = getEntityAttribute(resource, "memory_limit",
                 Long.class);
 
@@ -128,6 +285,25 @@ public class CloudEntityResourceMapper {
                 nonBasicServicesAllowed, totalServices, totalRoutes,
                 memoryLimit);
     }
+    
+    private CloudSpaceQuota mapSpaceQuotaResource(Map<String, Object> resource) {
+    	Boolean nonBasicServicesAllowed = getEntityAttribute(resource,
+                "non_basic_services_allowed", Boolean.class);
+    	int totalServices = getEntityAttribute(resource, "total_services",
+                Integer.class);
+        int totalRoutes = 4;
+        if (resource.get("total_routes") != null) {
+        	totalRoutes = getEntityAttribute(resource, "total_routes",
+                    Integer.class);
+        }   
+        long memoryLimit = getEntityAttribute(resource, "memory_limit",
+                Long.class);
+        String org_guid = getEntityAttribute(resource, "organization_guid", 
+        		String.class);
+        CloudSpaceQuota spaceQuota = new CloudSpaceQuota(getMeta(resource), getNameOfResource(resource)
+        		, nonBasicServicesAllowed, totalServices, totalRoutes, memoryLimit, org_guid);
+		return spaceQuota;
+	}
 
 	private CloudDomain mapDomainResource(Map<String, Object> resource) {
 		@SuppressWarnings("unchecked")
