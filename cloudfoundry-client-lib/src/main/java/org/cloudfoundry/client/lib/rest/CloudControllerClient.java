@@ -45,6 +45,7 @@ import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
 import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
+import org.cloudfoundry.client.lib.domain.CloudServiceInstance;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
@@ -398,5 +399,11 @@ public interface CloudControllerClient {
 	byte[] downloadAppWithAppName(String appName);
 
 	List<CloudAdminBuildpack> getBuildpacks();
+
+	Map<String, Object> getApplicationEnvironment(UUID appGuid);
+
+	Map<String, Object> getApplicationEnvironment(String appName);
+
+	CloudServiceInstance getServiceInstance(String service);
 
 }

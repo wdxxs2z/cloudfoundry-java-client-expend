@@ -67,6 +67,7 @@ import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
 import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
+import org.cloudfoundry.client.lib.domain.CloudServiceInstance;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudServicePlan;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
@@ -3112,5 +3113,55 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return buildpacks;
 	}
 
-	
+   @Override
+   public Map<String, Object> getApplicationEnvironment(UUID appGuid) {
+      String url = getUrl("/v2/apps/{guid}/env");
+      Map<String, Object> urlVars = new HashMap<String, Object>();
+      urlVars.put("guid", appGuid);
+      String resp = restTemplate.getForObject(url, String.class, urlVars);
+      return JsonUtil.convertJsonToMap(resp);
+   }
+
+	@Override
+	public Map<String, Object> getApplicationEnvironment(String appName) {
+		UUID appId = getAppId(appName);
+		return getApplicationEnvironment(appId);
+	}
+
+	@Override
+	public CloudServiceInstance getServiceInstance(String serviceName) {
+		Map<String, Object> resource = doGetServiceInstance(serviceName, 1);
+
+		if (resource == null) {
+			return null;
+		}
+
+		return resourceMapper.mapResource(resource, CloudServiceInstance.class);
+	}
+
+	private Map<String, Object> doGetServiceInstance(String serviceName, int inlineDepth) {
+		String urlPath = "/v2";
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		if (sessionSpace != null) {
+			urlVars.put("space", sessionSpace.getMeta().getGuid());
+			urlPath = urlPath + "/spaces/{space}";
+		}
+		urlVars.put("q", "name:" + serviceName);
+		urlPath = urlPath + "/service_instances?q={q}&return_user_provided_service_instances=true";
+		if (inlineDepth > 0) {
+			urlPath = urlPath + "&inline-relations-depth=" + inlineDepth;
+		}
+
+		List<Map<String, Object>> resources = getAllResources(urlPath, urlVars);
+
+		if (resources.size() > 0) {
+			Map<String, Object> serviceResource = resources.get(0);
+			if (hasEmbeddedResource(serviceResource, "service_plan")) {
+				fillInEmbeddedResource(serviceResource, "service_plan", "service");
+			}
+			return serviceResource;
+		}
+		return null;
+	}
+
 }

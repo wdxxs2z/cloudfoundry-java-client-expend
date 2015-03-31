@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.cloudfoundry.client.lib.archive.ApplicationArchive;
 import org.cloudfoundry.client.lib.domain.ApplicationLog;
@@ -37,6 +38,7 @@ import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
 import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
+import org.cloudfoundry.client.lib.domain.CloudServiceInstance;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
@@ -1158,5 +1160,29 @@ public interface CloudFoundryOperations {
 	 * @return List<CloudAdminBuildpack>
 	 * */
 	List<CloudAdminBuildpack> getBuildpacks();
+	
+   /**
+    * Get application environment variables for the app with the specified name.
+    *
+    * @param appGuid UUID of the app
+    * @return the cloud application environment variables
+    */
+   Map<String, Object> getApplicationEnvironment(UUID appGuid);
+   
+   /**
+	 * Get application environment variables for the app with the specified name.
+	 *
+	 * @param appName name of the app
+	 * @return the cloud application environment variables
+	 */
+	Map<String, Object> getApplicationEnvironment(String appName);
+	
+	/**
+	 * Get a service instance.
+	 *
+	 * @param service name of the service instance
+	 * @return the service instance info
+	 */
+	CloudServiceInstance getServiceInstance(String service);
 	
 }

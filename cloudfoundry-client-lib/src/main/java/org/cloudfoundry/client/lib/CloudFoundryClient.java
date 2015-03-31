@@ -39,6 +39,7 @@ import org.cloudfoundry.client.lib.domain.CloudSecurityGroup;
 import org.cloudfoundry.client.lib.domain.CloudSecurityRules;
 import org.cloudfoundry.client.lib.domain.CloudService;
 import org.cloudfoundry.client.lib.domain.CloudServiceBroker;
+import org.cloudfoundry.client.lib.domain.CloudServiceInstance;
 import org.cloudfoundry.client.lib.domain.CloudServiceOffering;
 import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
@@ -952,5 +953,20 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	@Override
 	public List<CloudAdminBuildpack> getBuildpacks() {
 		return cc.getBuildpacks();
+	}
+
+	@Override
+	public Map<String, Object> getApplicationEnvironment(UUID appGuid) {
+		return cc.getApplicationEnvironment(appGuid);
+	}
+
+	@Override
+	public Map<String, Object> getApplicationEnvironment(String appName) {		
+		return cc.getApplicationEnvironment(appName);
+	}
+
+	@Override
+	public CloudServiceInstance getServiceInstance(String service) {
+		return cc.getServiceInstance(service);
 	}
 }
