@@ -79,7 +79,7 @@ public class CloudEntityResourceMapper {
 			return (T) mapRouteResource(resource);
 		}
 		if (targetClass == CloudApplication.class) {
-			return (T) mapServiceResource(resource);
+			return (T) mapApplicationResource(resource);
 		}
 		if (targetClass == CloudService.class) {
 			return (T) mapServiceResource(resource);
