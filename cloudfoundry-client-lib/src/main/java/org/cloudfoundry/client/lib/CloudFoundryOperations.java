@@ -856,6 +856,15 @@ public interface CloudFoundryOperations {
 	public void updateGroupMember(String userName, String displayName, String member_type, Boolean isDelete);
 	
 	/**
+	 * updateGroupMemberByUserGuid
+	 * @param userGuid
+	 * @param displayName | uaa.admin,cloud_controller.admin,scim.read,scim.write...
+	 * @param member_type | members,readers,writers
+	 * @param isDelete 
+	 * */
+	public void updateGroupMemberByUserGuid(String userGuid, String displayName, String member_type, Boolean isDelete);
+	
+	/**
 	 * Associate User with the Organization
 	 * */
 	void associateUserWithOrg(CloudOrganization organization,CloudUser user);
@@ -876,9 +885,19 @@ public interface CloudFoundryOperations {
 	void associateOrgWithUser(CloudUser user, CloudOrganization organization);
 	
 	/**
+	 * Associate Organization with the User
+	 * */
+	void associateOrgWithUser(String userGuid, String orgGuid);
+	
+	/**
 	 * Associate Space with the User
 	 * */
 	void associataSpaceWithUser(CloudUser user, CloudSpace space);
+	
+	/**
+	 * Associate Space with the User
+	 * */
+	void associataSpaceWithUser(String userGuid, String spaceGuid);
 	
 	/**
 	 * Associate Role Organization with the User

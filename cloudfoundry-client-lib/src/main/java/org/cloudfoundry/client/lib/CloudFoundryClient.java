@@ -969,4 +969,20 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	public CloudServiceInstance getServiceInstance(String service) {
 		return cc.getServiceInstance(service);
 	}
+
+	@Override
+	public void associataSpaceWithUser(String userGuid, String spaceGuid) {
+		cc.associataSpaceWithUser(userGuid, spaceGuid);		
+	}
+
+	@Override
+	public void associateOrgWithUser(String userGuid, String orgGuid) {
+		cc.associateOrgWithUser(userGuid, orgGuid);
+	}
+
+	@Override
+	public void updateGroupMemberByUserGuid(String userGuid,
+			String displayName, String member_type, Boolean isDelete) {
+		cc.updateGroupMemberByUserGuid(userGuid, displayName, member_type, isDelete);	
+	}
 }

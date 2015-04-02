@@ -197,8 +197,7 @@ public class OauthClient {
 				return (String) resource.get("id");
 			}
 		}
-		return null;
-		
+		return null;		
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -324,6 +323,11 @@ public class OauthClient {
 		String jsonBody = JsonUtil.convertToJson(body);
 		HttpEntity<String> httpEntity = new HttpEntity<String>(jsonBody, headers);
 		restTemplate.postForEntity(authorizationUrl + "/Groups", httpEntity, String.class);
+	}
+	
+	public void updateGroupMemberByUserGuid(String userGuid, String displayName, String member_type, Boolean isDelete){
+		String userName = this.getUserName(userGuid);
+		this.updateGroupMember(userName, displayName, member_type, isDelete);
 	}
 	
 	@SuppressWarnings("unchecked")

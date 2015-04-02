@@ -2326,6 +2326,14 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2/organizations/" + orgGuid + "/users/" + userGuid;
 		getRestTemplate().put(getUrl(urlPath), null);
 	}
+	
+	@Override
+	public void associateOrgWithUser(String userGuid, String orgGuid) {
+		Assert.notNull(userGuid, "Organization must not be null");
+		Assert.notNull(orgGuid, "User must not be null");
+		String urlPath = "/v2/organizations/" + orgGuid + "/users/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
 
 	@Override
 	public void associateUserWithOrgRole(CloudOrganization organization,
@@ -2367,6 +2375,12 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String userId = user.getMeta().getGuid().toString();
 		String spaceId = space.getMeta().getGuid().toString();
 		String urlPath = "/v2/users/" + userId + "/spaces/" + spaceId;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+	
+	@Override
+	public void associataSpaceWithUser(String userGuid, String spaceGuid) {
+		String urlPath = "/v2/users/" + userGuid + "/spaces/" + spaceGuid;
 		getRestTemplate().put(getUrl(urlPath), null);
 	}
 
@@ -2511,7 +2525,13 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 			String member_type, Boolean isDelete) {
 		oauthClient.updateGroupMember(user, displayName, member_type, isDelete);		
 	}
-
+	
+	@Override
+	public void updateGroupMemberByUserGuid(String userGuid,
+			String displayName, String member_type, Boolean isDelete) {
+		oauthClient.updateGroupMemberByUserGuid(userGuid, displayName, member_type, isDelete);		
+	}
+	
 	@Override
 	public List<CloudDomain> getDomainFromOrgName(String orgName) {
 		Assert.notNull(orgName, "orgName Name must not be null");

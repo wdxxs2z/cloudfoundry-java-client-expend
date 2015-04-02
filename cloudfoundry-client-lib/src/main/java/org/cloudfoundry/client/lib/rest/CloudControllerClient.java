@@ -406,4 +406,11 @@ public interface CloudControllerClient {
 
 	CloudServiceInstance getServiceInstance(String service);
 
+	void associataSpaceWithUser(String userGuid, String spaceGuid);
+
+	void associateOrgWithUser(String userGuid, String orgGuid);
+
+	void updateGroupMemberByUserGuid(String userGuid, String displayName,
+			String member_type, Boolean isDelete);
+
 }
