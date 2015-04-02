@@ -478,8 +478,11 @@ public class CloudEntityResourceMapper {
 
 	@SuppressWarnings("unchecked")
 	public static CloudEntity.Meta getMeta(Map<String, Object> resource) {
+		UUID guid = null;
 		Map<String, Object> metadata = (Map<String, Object>) resource.get("metadata");
-		UUID guid = UUID.fromString(String.valueOf(metadata.get("guid")));
+		if (String.valueOf(metadata.get("guid")).contains("-")){
+			guid = UUID.fromString(String.valueOf(metadata.get("guid")));
+		}		
 		Date createdDate = parseDate(String.valueOf(metadata.get("created_at")));
 		Date updatedDate = parseDate(String.valueOf(metadata.get("updated_at")));
 		return new CloudEntity.Meta(guid, createdDate, updatedDate);

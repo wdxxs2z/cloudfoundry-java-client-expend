@@ -553,7 +553,7 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 
 		String name = CloudUtil.parse(String.class, infoV2Map.get("name"));
 		String support = CloudUtil.parse(String.class, infoV2Map.get("support"));
-		String authorizationEndpoint = CloudUtil.parse(String.class, infoV2Map.get("authorization_endpoint"));
+		String authorizationEndpoint = CloudUtil.parse(String.class, infoV2Map.get("token_endpoint"));
 		String build = CloudUtil.parse(String.class, infoV2Map.get("build"));
 		String version = "" + CloudUtil.parse(Number.class, infoV2Map.get("version"));
 		String description = CloudUtil.parse(String.class, infoV2Map.get("description"));
@@ -2273,9 +2273,14 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2/users?inline-relations-depth=2";
 		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
 		List<CloudUser> users = new ArrayList<CloudUser>();
+		UUID user_id = null;
 		for (Map<String, Object> resource : resourceList) {
 			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
-			UUID user_id = cloudUser.getMeta().getGuid();
+			if (cloudUser.getMeta().getGuid() != null) {
+				user_id = cloudUser.getMeta().getGuid();
+			}else{
+				continue;
+			}			
 			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
 			cloudUser.setName((String)userInfo.get("userName"));
 			cloudUser.setFamilyName((String)userInfo.get("familyName"));

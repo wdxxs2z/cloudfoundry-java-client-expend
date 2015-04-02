@@ -108,7 +108,7 @@ public class CloudControllerClientFactory {
 	}
 
 	private URL getAuthorizationEndpoint(Map<String, Object> infoMap, URL cloudControllerUrl) {
-		String authEndPoint = (String) infoMap.get("authorization_endpoint");
+		String authEndPoint = (String) infoMap.get("token_endpoint");
 
 		try {
 			return new URL(authEndPoint);
