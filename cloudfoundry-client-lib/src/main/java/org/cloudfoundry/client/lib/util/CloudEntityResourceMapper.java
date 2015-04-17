@@ -44,6 +44,7 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
+import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.Staging;
 
 /**
@@ -101,6 +102,9 @@ public class CloudEntityResourceMapper {
         }
 		if (targetClass == CloudUser.class) {
 			return (T) mapUserResource(resource);
+		}
+		if (targetClass == CloudUserNoUaa.class) {
+			return (T) mapUserNoUaaResource(resource);
 		}
 		if (targetClass == CloudSpaceQuota.class) {
 			return (T) mapSpaceQuotaResource(resource);
@@ -206,15 +210,40 @@ public class CloudEntityResourceMapper {
 		Boolean isAdmin = (Boolean) getEntity(resource).get("admin");
 		Boolean isActive = (Boolean) getEntity(resource).get("active");
 		
+		if (getEntity(resource).get("username") != null) {
+			
+			String username = (String) getEntity(resource).get("username");
+			List<CloudOrganization> organizations = getOrgListByRole("organizations", resource);
+			List<CloudOrganization> managed_organizations = getOrgListByRole("managed_organizations", resource);
+			List<CloudOrganization> audited_organizations = getOrgListByRole("audited_organizations", resource);
+			
+			List<CloudSpace> spaces = getSpaceListByRole("spaces", resource);
+			List<CloudSpace> managed_spaces = getSpaceListByRole("managed_spaces", resource);
+			List<CloudSpace> audited_spaces = getSpaceListByRole("audited_spaces", resource);
+			return new CloudUser(getMeta(resource), username, isAdmin, isActive, organizations, managed_organizations, audited_organizations, spaces, managed_spaces, audited_spaces);
+			
+		}else{
+			List<CloudOrganization> organizations = getOrgListByRole("organizations", resource);
+			List<CloudOrganization> managed_organizations = getOrgListByRole("managed_organizations", resource);
+			List<CloudOrganization> audited_organizations = getOrgListByRole("audited_organizations", resource);
+			
+			List<CloudSpace> spaces = getSpaceListByRole("spaces", resource);
+			List<CloudSpace> managed_spaces = getSpaceListByRole("managed_spaces", resource);
+			List<CloudSpace> audited_spaces = getSpaceListByRole("audited_spaces", resource);
+			return new CloudUser(getMeta(resource), getNameOfResource(resource), isAdmin, isActive,organizations, managed_organizations, audited_organizations, spaces, managed_spaces, audited_spaces);
+		}
+	}
+	
+
+	private CloudUserNoUaa mapUserNoUaaResource(Map<String, Object> resource) {
+		String username = (String) getEntity(resource).get("username");
+		
 		List<CloudOrganization> organizations = getOrgListByRole("organizations", resource);
-		List<CloudOrganization> managed_organizations = getOrgListByRole("managed_organizations", resource);
-		List<CloudOrganization> audited_organizations = getOrgListByRole("audited_organizations", resource);
 		
 		List<CloudSpace> spaces = getSpaceListByRole("spaces", resource);
-		List<CloudSpace> managed_spaces = getSpaceListByRole("managed_spaces", resource);
-		List<CloudSpace> audited_spaces = getSpaceListByRole("audited_spaces", resource);
 		
-		return new CloudUser(getMeta(resource), getNameOfResource(resource), isAdmin, isActive,organizations, managed_organizations, audited_organizations, spaces, managed_spaces, audited_spaces);
+		return new CloudUserNoUaa(getMeta(resource), username, organizations, spaces);
+		
 	}
 	
 	private List<CloudOrganization> getOrgListByRole(String orgRole, Map<String, Object> resource){

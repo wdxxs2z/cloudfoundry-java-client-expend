@@ -51,6 +51,7 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
+import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -412,5 +413,28 @@ public interface CloudControllerClient {
 
 	void updateGroupMemberByUserGuid(String userGuid, String displayName,
 			String member_type, Boolean isDelete);
+
+	List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName,
+			String roleName);
+
+	List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid, String roleName);
+
+	List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName);
+
+	List<CloudUserNoUaa> getUsersNoUaa();
+
+	CloudUserNoUaa findUserByNameNoUaa(String username);
+
+	List<CloudUser> getOrganizationManagers(String orgName);
+
+	List<CloudUser> getOrgizationAuditors(String orgName);
+
+	List<CloudUser> getOrgizationBillingManagers(String orgName);
+
+	List<CloudUser> getSpaceManagers(String spaceGuid);
+
+	List<CloudUser> getSpaceAuditors(String spaceGuid);
+
+	List<CloudUser> getSpaceDevelopers(String spaceGuid);
 
 }

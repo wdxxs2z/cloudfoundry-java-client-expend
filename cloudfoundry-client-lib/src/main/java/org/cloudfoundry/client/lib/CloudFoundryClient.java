@@ -45,6 +45,7 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
+import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -985,4 +986,62 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 			String displayName, String member_type, Boolean isDelete) {
 		cc.updateGroupMemberByUserGuid(userGuid, displayName, member_type, isDelete);	
 	}
+
+	@Override
+	public List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName,
+			String roleName) {
+		return cc.getOrganizationUsersByRoleNoUaa(orgName, roleName);
+	}
+
+	@Override
+	public List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid,
+			String roleName) {
+		return cc.getSpaceUsersByRoleNoUaa(spaceGuid, roleName);
+	}
+
+	@Override
+	public List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName) {
+		return cc.getOrganizationUsersNoUaa(orgName);
+	}
+
+	@Override
+	public List<CloudUserNoUaa> getUsersNoUaa() {
+		return cc.getUsersNoUaa();
+	}
+
+	@Override
+	public CloudUserNoUaa findUserByNameNoUaa(String username) {
+		return cc.findUserByNameNoUaa(username);
+	}
+
+	@Override
+	public List<CloudUser> getOrganizationManagers(String orgName) {
+		return cc.getOrganizationManagers(orgName);
+	}
+
+	@Override
+	public List<CloudUser> getOrgizationAuditors(String orgName) {
+		return cc.getOrgizationAuditors(orgName);
+	}
+
+	@Override
+	public List<CloudUser> getOrgizationBillingManagers(String orgName) {
+		return cc.getOrgizationBillingManagers(orgName);
+	}
+
+	@Override
+	public List<CloudUser> getSpaceManagers(String spaceGuid) {
+		return cc.getSpaceManagers(spaceGuid);
+	}
+
+	@Override
+	public List<CloudUser> getSpaceAuditors(String spaceGuid) {
+		return cc.getSpaceAuditors(spaceGuid);
+	}
+
+	@Override
+	public List<CloudUser> getSpaceDevelopers(String spaceGuid) {
+		return cc.getSpaceDevelopers(spaceGuid);
+	}
+
 }

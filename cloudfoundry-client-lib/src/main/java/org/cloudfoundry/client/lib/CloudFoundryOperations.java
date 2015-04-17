@@ -44,6 +44,7 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
+import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -1203,5 +1204,80 @@ public interface CloudFoundryOperations {
 	 * @return the service instance info
 	 */
 	CloudServiceInstance getServiceInstance(String service);
+	
+	/**
+	 * getOrganizationAuditors
+	 * @param give organization name
+	 * @return List<CloudUser> info
+	 * */
+	List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName, String roleName);
+
+	/**
+	 * getOrganizationUsersNoUaa
+	 * @param give organization name
+	 * @return List<CloudUserNoUaa>
+	 * */
+	List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName);
+	
+	/**
+	 * getSpaceAuditors
+	 * @param give space
+	 * */
+	List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid, String roleName);
+	
+	/**
+	 * getUsersNoUaa
+	 * @return List<CloudUserNoUaa>
+	 * */
+	List<CloudUserNoUaa> getUsersNoUaa();
+	
+	/**
+	 * getUsersNoUaa
+	 * @param username
+	 * @return CloudUserNoUaa
+	 * */
+	CloudUserNoUaa findUserByNameNoUaa(String username);
+	
+	/**
+	 * getOrganizationManagers
+	 * @param orgName
+	 * @return List<CloudUser>
+	 * */
+	List<CloudUser> getOrganizationManagers(String orgName);
+	
+	/**
+	 * getOrgizationAuditors
+	 * @param orgName
+	 * @return List<CloudUser>
+	 * */
+	List<CloudUser> getOrgizationAuditors(String orgName);
+	
+	/**
+	 * getOrgizationBillingManagers
+	 * @param orgName
+	 * @return List<CloudUser>
+	 * */
+	List<CloudUser> getOrgizationBillingManagers(String orgName);
+	
+	/**
+	 * getSpaceManagers
+	 * @param spaceGuid
+	 * @return List<CloudUser>
+	 * */
+	List<CloudUser> getSpaceManagers(String spaceGuid);
+	
+	/**
+	 * getSpaceAuditors
+	 * @param spaceGuid
+	 * @return List<CloudUser>
+	 * */
+	List<CloudUser> getSpaceAuditors(String spaceGuid);
+	
+	/**
+	 * getSpaceDevelopers
+	 * @param spaceGuid
+	 * @return getSpaceDevelopers
+	 * */
+	List<CloudUser> getSpaceDevelopers(String spaceGuid);
 	
 }

@@ -74,6 +74,7 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
+import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashInfo;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstanceState;
@@ -2142,31 +2143,58 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/users?inline-relations-depth=2";
 		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
 		List<CloudUser> users = new ArrayList<CloudUser>();
+		UUID user_id = null;
 		for (Map<String, Object> resource : resourceList) {
 			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
-			UUID user_id = cloudUser.getMeta().getGuid();
-			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
-			cloudUser.setName((String)userInfo.get("userName"));
-			cloudUser.setFamilyName((String)userInfo.get("familyName"));
-			cloudUser.setGivenName((String)userInfo.get("givenName"));
-			List<String> emailList = new ArrayList<String>();
-			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
-			for (Map<String, String> email : emails) {				
-				emailList.add((String)email.get("value"));
+			if (cloudUser.getMeta().getGuid() != null) {
+				user_id = cloudUser.getMeta().getGuid();
+			}else{
+				continue;
 			}
-			cloudUser.setEmails(emailList);
-			
-			List<String> phoneList = new ArrayList<String>();
-			if (userInfo.get("phoneNumbers") != null) {
-				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
-				for (Map<String, String> phone : phones) {
-					phoneList.add((String)phone.get("value"));
+			if(cloudUser.getName()!=null) {
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(cloudUser.getName());
+				users.add(cloudUser);
+			}else{
+				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+				cloudUser.setName((String)userInfo.get("userName"));
+				cloudUser.setFamilyName((String)userInfo.get("familyName"));
+				cloudUser.setGivenName((String)userInfo.get("givenName"));
+				List<String> emailList = new ArrayList<String>();
+				List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+				for (Map<String, String> email : emails) {				
+					emailList.add((String)email.get("value"));
 				}
-				cloudUser.setPhoneNumbers(phoneList);
+				cloudUser.setEmails(emailList);
+				
+				List<String> phoneList = new ArrayList<String>();
+				if (userInfo.get("phoneNumbers") != null) {
+					List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+					for (Map<String, String> phone : phones) {
+						phoneList.add((String)phone.get("value"));
+					}
+					cloudUser.setPhoneNumbers(phoneList);
+				}
+				
+				users.add(cloudUser);
 			}
-			users.add(cloudUser);
 		}
 		return users;
+	}
+	
+	@Override
+	public List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName) {
+		CloudOrganization org = this.getOrgByName(orgName, true);
+		UUID orgGuid = org.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid.toString() 
+				+ "/users" + "/users?inline-relations-depth=2";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUserNoUaa cloudUserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
+			cloudUsersNoUaa.add(cloudUserNoUaa);
+		}
+		return cloudUsersNoUaa;
 	}
 	
 	@SuppressWarnings("unchecked")
@@ -2177,33 +2205,60 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/" + roleName + "?inline-relations-depth=1";
 		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
 		List<CloudUser> users = new ArrayList<CloudUser>();
+		UUID user_id = null;
 		for (Map<String, Object> resource : resourceList) {
 			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
-			UUID user_id = cloudUser.getMeta().getGuid();
-			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
-			cloudUser.setName((String)userInfo.get("userName"));
-			cloudUser.setFamilyName((String)userInfo.get("familyName"));
-			cloudUser.setGivenName((String)userInfo.get("givenName"));
-			List<String> emailList = new ArrayList<String>();
-			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
-			for (Map<String, String> email : emails) {				
-				emailList.add((String)email.get("value"));
+			if (cloudUser.getMeta().getGuid() != null) {
+				user_id = cloudUser.getMeta().getGuid();
+			}else{
+				continue;
 			}
-			cloudUser.setEmails(emailList);
-			
-			List<String> phoneList = new ArrayList<String>();
-			if (userInfo.get("phoneNumbers") != null) {
-				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
-				for (Map<String, String> phone : phones) {
-					phoneList.add((String)phone.get("value"));
+			if(cloudUser.getName()!=null) {
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(cloudUser.getName());
+				users.add(cloudUser);
+			}else{
+				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+				cloudUser.setName((String)userInfo.get("userName"));
+				cloudUser.setFamilyName((String)userInfo.get("familyName"));
+				cloudUser.setGivenName((String)userInfo.get("givenName"));
+				List<String> emailList = new ArrayList<String>();
+				List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+				for (Map<String, String> email : emails) {				
+					emailList.add((String)email.get("value"));
 				}
-				cloudUser.setPhoneNumbers(phoneList);
-			}
-			
-			users.add(cloudUser);
+				cloudUser.setEmails(emailList);
+				
+				List<String> phoneList = new ArrayList<String>();
+				if (userInfo.get("phoneNumbers") != null) {
+					List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+					for (Map<String, String> phone : phones) {
+						phoneList.add((String)phone.get("value"));
+					}
+					cloudUser.setPhoneNumbers(phoneList);
+				}
+				
+				users.add(cloudUser);
+			}			
 		}
 		return users;
 	}
+	
+	@Override
+	public List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName,
+			String roleName) {
+		CloudOrganization org = this.getOrgByName(orgName, true);
+		UUID orgGuid = org.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/" + roleName + "?inline-relations-depth=1";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUserNoUaa> users = new ArrayList<CloudUserNoUaa>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUserNoUaa cloudUserNoUaa =  resourceMapper.mapResource(resource, CloudUserNoUaa.class);
+			users.add(cloudUserNoUaa);
+		}
+		return users;
+	}
+
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -2211,32 +2266,56 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2/spaces/" + spaceUUID + "/" + roleName + "?inline-relations-depth=2";
 		List<Map<String,Object>> resourceList = getAllResources(urlPath, null);
 		List<CloudUser> users = new ArrayList<CloudUser>();
+		UUID user_id = null;
 		for (Map<String, Object> resource : resourceList) {
 			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
-			UUID user_id = cloudUser.getMeta().getGuid();
-			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
-			cloudUser.setName((String)userInfo.get("userName"));
-			cloudUser.setFamilyName((String)userInfo.get("familyName"));
-			cloudUser.setGivenName((String)userInfo.get("givenName"));
-			List<String> emailList = new ArrayList<String>();
-			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
-			for (Map<String, String> email : emails) {				
-				emailList.add((String)email.get("value"));
+			if (cloudUser.getMeta().getGuid() != null) {
+				user_id = cloudUser.getMeta().getGuid();
+			}else{
+				continue;
 			}
-			cloudUser.setEmails(emailList);
-			
-			List<String> phoneList = new ArrayList<String>();
-			if (userInfo.get("phoneNumbers") != null) {
-				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
-				for (Map<String, String> phone : phones) {
-					phoneList.add((String)phone.get("value"));
+			if(cloudUser.getName()!=null) {
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(cloudUser.getName());
+				users.add(cloudUser);
+			}else{
+				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+				cloudUser.setName((String)userInfo.get("userName"));
+				cloudUser.setFamilyName((String)userInfo.get("familyName"));
+				cloudUser.setGivenName((String)userInfo.get("givenName"));
+				List<String> emailList = new ArrayList<String>();
+				List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+				for (Map<String, String> email : emails) {				
+					emailList.add((String)email.get("value"));
 				}
-				cloudUser.setPhoneNumbers(phoneList);
+				cloudUser.setEmails(emailList);
+				
+				List<String> phoneList = new ArrayList<String>();
+				if (userInfo.get("phoneNumbers") != null) {
+					List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+					for (Map<String, String> phone : phones) {
+						phoneList.add((String)phone.get("value"));
+					}
+					cloudUser.setPhoneNumbers(phoneList);
+				}
+				
+				users.add(cloudUser);
 			}
-			
-			users.add(cloudUser);
 		}
 		return users;
+	}
+	
+	@Override
+	public List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid,
+			String roleName) {
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + roleName + "?inline-relations-depth=2";
+		List<Map<String,Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUserNoUaa clouduserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
+			cloudUsersNoUaa.add(clouduserNoUaa);
+		}
+		return cloudUsersNoUaa;
 	}
 
 	@Override
@@ -2280,29 +2359,48 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 				user_id = cloudUser.getMeta().getGuid();
 			}else{
 				continue;
-			}			
-			Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
-			cloudUser.setName((String)userInfo.get("userName"));
-			cloudUser.setFamilyName((String)userInfo.get("familyName"));
-			cloudUser.setGivenName((String)userInfo.get("givenName"));
-			List<String> emailList = new ArrayList<String>();
-			List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
-			for (Map<String, String> email : emails) {				
-				emailList.add((String)email.get("value"));
 			}
-			cloudUser.setEmails(emailList);
-			
-			List<String> phoneList = new ArrayList<String>();
-			if (userInfo.get("phoneNumbers") != null) {
-				List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
-				for (Map<String, String> phone : phones) {
-					phoneList.add((String)phone.get("value"));
+			if(cloudUser.getName()!=null) {
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(cloudUser.getName());
+				users.add(cloudUser);
+			}else{
+				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+				cloudUser.setName((String)userInfo.get("userName"));
+				cloudUser.setFamilyName((String)userInfo.get("familyName"));
+				cloudUser.setGivenName((String)userInfo.get("givenName"));
+				List<String> emailList = new ArrayList<String>();
+				List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+				for (Map<String, String> email : emails) {				
+					emailList.add((String)email.get("value"));
 				}
-				cloudUser.setPhoneNumbers(phoneList);
-			}		
-			users.add(cloudUser);
+				cloudUser.setEmails(emailList);
+				
+				List<String> phoneList = new ArrayList<String>();
+				if (userInfo.get("phoneNumbers") != null) {
+					List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+					for (Map<String, String> phone : phones) {
+						phoneList.add((String)phone.get("value"));
+					}
+					cloudUser.setPhoneNumbers(phoneList);
+				}
+				
+				users.add(cloudUser);
+			}
 		}
 		return users;
+	}
+	
+	@Override
+	public List<CloudUserNoUaa> getUsersNoUaa() {
+		String urlPath = "/v2/users?inline-relations-depth=2";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
+		for (Map<String, Object> resource : resourceList) {
+			CloudUserNoUaa cloudUserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
+			cloudUsersNoUaa.add(cloudUserNoUaa);
+		}
+		return cloudUsersNoUaa;
 	}
 
 	@Override
@@ -2314,6 +2412,18 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 			}
 		}
 		return null;
+	}
+	
+	@Override
+	public CloudUserNoUaa findUserByNameNoUaa(String username) {
+		String urlPath = "/v2/users?q=username:" + username;
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
+		for (Map<String,Object> resource : resources) {
+			CloudUserNoUaa cloudUserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
+			cloudUsersNoUaa.add(cloudUserNoUaa);
+		}
+		return cloudUsersNoUaa.size() != 0 ?cloudUsersNoUaa.get(0) : null;
 	}
 
 	@Override
@@ -2547,34 +2657,17 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return domains;
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	public CloudUser getUsersummaryFromUserName(String userName) {
-		String userGuid = oauthClient.getUserIdByName(userName);
-		Map<String, Object> userInfo = oauthClient.getUserInfo(userGuid);
-		String urlPath = "/v2/users/" + userGuid + "/summary";
+		CloudUser cloudUser = this.findUserByUsername(userName);
+		String urlPath = "/v2/users/" + cloudUser.getMeta().getGuid().toString() + "/summary";
 		ResponseEntity<String> resource = restTemplate.getForEntity(cloudControllerUrl + urlPath, String.class);
 		String userinfos = resource.getBody();
 		Map<String, Object> userMap = JsonUtil.convertJsonToMap(userinfos);
 		CloudUser user = resourceMapper.mapResource(userMap, CloudUser.class);
-		user.setName((String)userInfo.get("userName"));
-		user.setFamilyName((String)userInfo.get("familyName"));
-		user.setGivenName((String)userInfo.get("givenName"));
 		List<String> emailList = new ArrayList<String>();
-		List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
-		for (Map<String, String> email : emails) {				
-			emailList.add((String)email.get("value"));
-		}
+		emailList.add(user.getName());
 		user.setEmails(emailList);
-		
-		List<String> phoneList = new ArrayList<String>();
-		if (userInfo.get("phoneNumbers") != null) {
-			List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
-			for (Map<String, String> phone : phones) {
-				phoneList.add((String)phone.get("value"));
-			}
-			user.setPhoneNumbers(phoneList);
-		}
 		return user;
 	}
 
@@ -3189,4 +3282,33 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return null;
 	}
 
+	@Override
+	public List<CloudUser> getOrganizationManagers(String orgName) {
+		return this.getUsersByOrgRole(orgName, "managers");
+	}
+
+	@Override
+	public List<CloudUser> getOrgizationAuditors(String orgName) {
+		return this.getUsersByOrgRole(orgName, "auditors");
+	}
+
+	@Override
+	public List<CloudUser> getOrgizationBillingManagers(String orgName) {
+		return this.getUsersByOrgRole(orgName, "billing_managers");
+	}
+
+	@Override
+	public List<CloudUser> getSpaceManagers(String spaceGuid) {
+		return this.getUsersBySpaceRole(spaceGuid, "managers");
+	}
+
+	@Override
+	public List<CloudUser> getSpaceAuditors(String spaceGuid) {
+		return this.getUsersBySpaceRole(spaceGuid, "auditors");
+	}
+
+	@Override
+	public List<CloudUser> getSpaceDevelopers(String spaceGuid) {
+		return this.getUsersBySpaceRole(spaceGuid, "developers");
+	}
 }
