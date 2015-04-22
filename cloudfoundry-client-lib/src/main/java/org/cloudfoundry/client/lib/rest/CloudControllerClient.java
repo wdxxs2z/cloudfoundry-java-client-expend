@@ -51,7 +51,6 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
-import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -257,12 +256,6 @@ public interface CloudControllerClient {
 
 	void associateUserWithOrg(CloudOrganization organization, CloudUser user);
 
-	void associateUserWithOrgRole(CloudOrganization organization,
-			CloudUser user, String roleName);
-
-	void associateUserWithSpaceRole(CloudSpace space, CloudUser user,
-			String roleName);
-
 	void associateOrgWithUser(CloudUser user, CloudOrganization organization);
 
 	void associateOrgRoleWithUser(CloudUser user,
@@ -272,12 +265,6 @@ public interface CloudControllerClient {
 			String roleName);
 
 	void removeUserFormOrg(CloudOrganization organization, CloudUser user);
-
-	void removeUserFromRoleOrg(CloudOrganization organization, CloudUser user,
-			String roleName);
-
-	void removeUserFromRoleSpace(CloudSpace space, CloudUser user,
-			String roleName);
 
 	void removeOrgFromUser(CloudUser user, CloudOrganization organization);
 
@@ -414,17 +401,6 @@ public interface CloudControllerClient {
 	void updateGroupMemberByUserGuid(String userGuid, String displayName,
 			String member_type, Boolean isDelete);
 
-	List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName,
-			String roleName);
-
-	List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid, String roleName);
-
-	List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName);
-
-	List<CloudUserNoUaa> getUsersNoUaa();
-
-	CloudUserNoUaa findUserByNameNoUaa(String username);
-
 	List<CloudUser> getOrganizationManagers(String orgName);
 
 	List<CloudUser> getOrgizationAuditors(String orgName);
@@ -436,5 +412,56 @@ public interface CloudControllerClient {
 	List<CloudUser> getSpaceAuditors(String spaceGuid);
 
 	List<CloudUser> getSpaceDevelopers(String spaceGuid);
+
+	Boolean isOrganizationManager(String orgName, String username);
+
+	Boolean isOrganizationBillingManager(String orgName, String username);
+
+	Boolean isOrganizationAuditor(String orgName, String username);
+
+	Boolean isSpaceManager(String spaceGuid, String username);
+
+	Boolean isSpaceAuditor(String spaceGuid, String username);
+
+	Boolean isSpaceDeveloper(String spaceGuid, String username);
+
+	void associateManagerOrganization(String orgName, String username);
+
+	void associateBillingManagerOrganization(String orgName, String username);
+
+	void associateAuditorOrganization(String orgName, String username);
+
+	void associateManagerSpace(CloudSpace cloudSpace, String username);
+
+	void associateDeveloperSpace(CloudSpace cloudSpace, String username);
+
+	void associateAuditorSpace(CloudSpace cloudSpace, String username);
+
+	void associateManagerOrganizationTeam(String orgName, String userGuid);
+
+	CloudUser getCloudUserFromOrganizationTeam(String orgName, String username);
+
+	void associateBillingManagerOrganizationTeam(String orgName,
+			String userGuid);
+
+	void associateAuditorOrganizationTeam(String orgName, String userGuid);
+
+	void associateManagerSpaceTeam(CloudSpace cloudSpace, String userGuid);
+
+	void associateDeveloperSpaceTeam(CloudSpace cloudSpace, String userGuid);
+
+	void associateAuditorSpaceTeam(CloudSpace cloudSpace, String userGuid);
+
+	void removeOrganizationManager(String orgName, String userGuid);
+
+	void removeOrganizationBillingManager(String orgName, String userGuid);
+
+	void removeOrganizationAuditor(String orgName, String userGuid);
+
+	void removeSpaceManager(CloudSpace space, String userGuid);
+
+	void removeSpaceDeveloper(CloudSpace space, String userGuid);
+
+	void removeSpaceAuditor(CloudSpace space, String userGuid);
 
 }

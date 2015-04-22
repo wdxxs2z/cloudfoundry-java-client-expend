@@ -45,7 +45,6 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
-import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -594,20 +593,6 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	}
 
 	@Override
-	public void associateUserWithOrgRole(CloudOrganization organization,
-			CloudUser user, String roleName) {
-		cc.associateUserWithOrgRole(organization, user, roleName);
-		
-	}
-
-	@Override
-	public void associateUserWithSpaceRole(CloudSpace space, CloudUser user,
-			String roleName) {
-		cc.associateUserWithSpaceRole(space,user,roleName);
-		
-	}
-
-	@Override
 	public void associateOrgWithUser(CloudUser user,
 			CloudOrganization organization) {
 		cc.associateOrgWithUser(user, organization);
@@ -631,20 +616,6 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	@Override
 	public void removeUserFormOrg(CloudOrganization organization, CloudUser user) {
 		cc.removeUserFormOrg(organization, user);
-		
-	}
-
-	@Override
-	public void removeUserFromRoleOrg(CloudOrganization organization,
-			CloudUser user, String roleName) {
-		cc.removeUserFromRoleOrg(organization, user, roleName);
-		
-	}
-
-	@Override
-	public void removeUserFromRoleSpace(CloudSpace space, CloudUser user,
-			String roleName) {
-		cc.removeUserFromRoleSpace(space,user,roleName);
 		
 	}
 
@@ -988,33 +959,6 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	}
 
 	@Override
-	public List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName,
-			String roleName) {
-		return cc.getOrganizationUsersByRoleNoUaa(orgName, roleName);
-	}
-
-	@Override
-	public List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid,
-			String roleName) {
-		return cc.getSpaceUsersByRoleNoUaa(spaceGuid, roleName);
-	}
-
-	@Override
-	public List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName) {
-		return cc.getOrganizationUsersNoUaa(orgName);
-	}
-
-	@Override
-	public List<CloudUserNoUaa> getUsersNoUaa() {
-		return cc.getUsersNoUaa();
-	}
-
-	@Override
-	public CloudUserNoUaa findUserByNameNoUaa(String username) {
-		return cc.findUserByNameNoUaa(username);
-	}
-
-	@Override
 	public List<CloudUser> getOrganizationManagers(String orgName) {
 		return cc.getOrganizationManagers(orgName);
 	}
@@ -1044,4 +988,132 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 		return cc.getSpaceDevelopers(spaceGuid);
 	}
 
+	@Override
+	public Boolean isOrganizationManager(String orgName, String username) {
+		return cc.isOrganizationManager(orgName,username);
+	}
+
+	@Override
+	public Boolean isOrganizationBillingManager(String orgName, String username) {
+		return cc.isOrganizationBillingManager(orgName,username);
+	}
+
+	@Override
+	public Boolean isOrganizationAuditor(String orgName, String username) {
+		return cc.isOrganizationAuditor(orgName,username);
+	}
+
+	@Override
+	public Boolean isSpaceManager(String spaceGuid, String username) {
+		return cc.isSpaceManager(spaceGuid,username);
+	}
+
+	@Override
+	public Boolean isSpaceAuditor(String spaceGuid, String username) {
+		return cc.isSpaceAuditor(spaceGuid,username);
+	}
+
+	@Override
+	public Boolean isSpaceDeveloper(String spaceGuid, String username) {
+		return cc.isSpaceDeveloper(spaceGuid,username);
+	}
+
+	@Override
+	public void associateManagerOrganization(String orgName, String username) {
+		cc.associateManagerOrganization(orgName,username);
+	}
+	
+	@Override
+	public void associateManagerOrganizationTeam(String orgName, String userGuid) {
+		cc.associateManagerOrganizationTeam(orgName, userGuid);
+	}
+
+	@Override
+	public void associateBillingManagerOrganization(String orgName,
+			String username) {
+		cc.associateBillingManagerOrganization(orgName,username);	
+	}
+
+	@Override
+	public void associateAuditorOrganization(String orgName, String username) {
+		cc.associateAuditorOrganization(orgName,username);
+	}
+
+	@Override
+	public void associateManagerSpace(CloudSpace cloudSpace, String username) {
+		cc.associateManagerSpace(cloudSpace,username);
+	}
+
+	@Override
+	public void associateDeveloperSpace(CloudSpace cloudSpace, String username) {
+		cc.associateDeveloperSpace(cloudSpace,username);
+	}
+
+	@Override
+	public void associateAuditorSpace(CloudSpace cloudSpace, String username) {
+		cc.associateAuditorSpace(cloudSpace,username);
+	}
+
+	@Override
+	public CloudUser getCloudUserFromOrganizationTeam(String orgName,
+			String username) {
+		return cc.getCloudUserFromOrganizationTeam(orgName, username);
+	}
+
+	@Override
+	public void associateBillingManagerOrganizationTeam(String orgName,
+			String userGuid) {
+		cc.associateBillingManagerOrganizationTeam(orgName, userGuid);
+	}
+
+	@Override
+	public void associateAuditorOrganizationTeam(String orgName, String userGuid) {
+		cc.associateAuditorOrganizationTeam(orgName, userGuid);
+	}
+
+	@Override
+	public void associateManagerSpaceTeam(CloudSpace cloudSpace, String userGuid) {
+		cc.associateManagerSpaceTeam(cloudSpace, userGuid);
+	}
+
+	@Override
+	public void associateDeveloperSpaceTeam(CloudSpace cloudSpace,
+			String userGuid) {
+		cc.associateDeveloperSpaceTeam(cloudSpace, userGuid);
+	}
+
+	@Override
+	public void associateAuditorSpaceTeam(CloudSpace cloudSpace, String userGuid) {
+		cc.associateAuditorSpaceTeam(cloudSpace, userGuid);
+	}
+
+	@Override
+	public void removeOrganizationManager(String orgName, String userGuid) {
+		cc.removeOrganizationManager(orgName, userGuid);
+	}
+
+	@Override
+	public void removeOrganizationBillingManager(String orgName, String userGuid) {
+		cc.removeOrganizationBillingManager(orgName, userGuid);
+	}
+
+	@Override
+	public void removeOrganizationAuditor(String orgName, String userGuid) {
+		cc.removeOrganizationAuditor(orgName, userGuid);		
+	}
+
+	@Override
+	public void removeSpaceManager(CloudSpace space, String userGuid) {
+		cc.removeSpaceManager(space, userGuid);
+	}
+
+	@Override
+	public void removeSpaceDeveloper(CloudSpace space, String userGuid) {
+		cc.removeSpaceDeveloper(space, userGuid);		
+	}
+
+	@Override
+	public void removeSpaceAuditor(CloudSpace space, String userGuid) {
+		cc.removeSpaceAuditor(space, userGuid);		
+	}
 }

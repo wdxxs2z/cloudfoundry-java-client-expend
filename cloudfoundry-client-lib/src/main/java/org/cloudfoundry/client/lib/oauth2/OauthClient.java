@@ -585,7 +585,7 @@ public class OauthClient {
 		}
 		
 		if(groupResource.size() == 0){
-			return null;
+			return groupResource;
 		}
 		
 		return groupResource;

@@ -74,7 +74,6 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
-import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashInfo;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstanceState;
@@ -2182,21 +2181,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return users;
 	}
 	
-	@Override
-	public List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName) {
-		CloudOrganization org = this.getOrgByName(orgName, true);
-		UUID orgGuid = org.getMeta().getGuid();
-		String urlPath = "/v2/organizations/" + orgGuid.toString() 
-				+ "/users" + "/users?inline-relations-depth=2";
-		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
-		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
-		for (Map<String, Object> resource : resourceList) {
-			CloudUserNoUaa cloudUserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
-			cloudUsersNoUaa.add(cloudUserNoUaa);
-		}
-		return cloudUsersNoUaa;
-	}
-	
 	@SuppressWarnings("unchecked")
 	@Override
 	public List<CloudUser> getUsersByOrgRole(String orgName, String roleName) {
@@ -2243,22 +2227,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		}
 		return users;
 	}
-	
-	@Override
-	public List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName,
-			String roleName) {
-		CloudOrganization org = this.getOrgByName(orgName, true);
-		UUID orgGuid = org.getMeta().getGuid();
-		String urlPath = "/v2/organizations/" + orgGuid.toString() + "/" + roleName + "?inline-relations-depth=1";
-		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
-		List<CloudUserNoUaa> users = new ArrayList<CloudUserNoUaa>();
-		for (Map<String, Object> resource : resourceList) {
-			CloudUserNoUaa cloudUserNoUaa =  resourceMapper.mapResource(resource, CloudUserNoUaa.class);
-			users.add(cloudUserNoUaa);
-		}
-		return users;
-	}
-
 
 	@SuppressWarnings("unchecked")
 	@Override
@@ -2303,19 +2271,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 			}
 		}
 		return users;
-	}
-	
-	@Override
-	public List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid,
-			String roleName) {
-		String urlPath = "/v2/spaces/" + spaceGuid + "/" + roleName + "?inline-relations-depth=2";
-		List<Map<String,Object>> resourceList = getAllResources(urlPath, null);
-		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
-		for (Map<String, Object> resource : resourceList) {
-			CloudUserNoUaa clouduserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
-			cloudUsersNoUaa.add(clouduserNoUaa);
-		}
-		return cloudUsersNoUaa;
 	}
 
 	@Override
@@ -2390,18 +2345,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		}
 		return users;
 	}
-	
-	@Override
-	public List<CloudUserNoUaa> getUsersNoUaa() {
-		String urlPath = "/v2/users?inline-relations-depth=2";
-		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
-		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
-		for (Map<String, Object> resource : resourceList) {
-			CloudUserNoUaa cloudUserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
-			cloudUsersNoUaa.add(cloudUserNoUaa);
-		}
-		return cloudUsersNoUaa;
-	}
 
 	@Override
 	public CloudUser findUserByUsername(String username) {
@@ -2412,18 +2355,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 			}
 		}
 		return null;
-	}
-	
-	@Override
-	public CloudUserNoUaa findUserByNameNoUaa(String username) {
-		String urlPath = "/v2/users?q=username:" + username;
-		List<Map<String,Object>> resources = getAllResources(urlPath, null);
-		List<CloudUserNoUaa> cloudUsersNoUaa = new ArrayList<CloudUserNoUaa>();
-		for (Map<String,Object> resource : resources) {
-			CloudUserNoUaa cloudUserNoUaa = resourceMapper.mapResource(resource, CloudUserNoUaa.class);
-			cloudUsersNoUaa.add(cloudUserNoUaa);
-		}
-		return cloudUsersNoUaa.size() != 0 ?cloudUsersNoUaa.get(0) : null;
 	}
 
 	@Override
@@ -2442,30 +2373,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		Assert.notNull(userGuid, "Organization must not be null");
 		Assert.notNull(orgGuid, "User must not be null");
 		String urlPath = "/v2/organizations/" + orgGuid + "/users/" + userGuid;
-		getRestTemplate().put(getUrl(urlPath), null);
-	}
-
-	@Override
-	public void associateUserWithOrgRole(CloudOrganization organization,
-			CloudUser user, String roleName) {
-		Assert.notNull(organization, "Organization must not be null");
-		Assert.notNull(user, "User must not be null");
-		Assert.notNull(roleName, "RoleName label must not be null");
-		UUID orgGuid = organization.getMeta().getGuid();
-		UUID userGuid = user.getMeta().getGuid();
-		String urlPath = "/v2/organizations/" + orgGuid + "/" + roleName + "/" + userGuid;
-		getRestTemplate().put(getUrl(urlPath), null);	
-	}
-
-	@Override
-	public void associateUserWithSpaceRole(CloudSpace space, CloudUser user,
-			String roleName) {
-		Assert.notNull(space, "Space must not be null");
-		Assert.notNull(user, "User must not be null");
-		Assert.notNull(roleName, "RoleName must not be null");
-		UUID spaceGuid = space.getMeta().getGuid();
-		UUID userGuid = user.getMeta().getGuid();
-		String urlPath = "/v2/spaces/" + spaceGuid + "/" + roleName + "/" + userGuid;
 		getRestTemplate().put(getUrl(urlPath), null);
 	}
 
@@ -2527,29 +2434,62 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String urlPath = "/v2/organizations/" + orgGuid + "/users/" + userGuid;
 		getRestTemplate().delete(getUrl(urlPath));
 	}
-
+	
 	@Override
-	public void removeUserFromRoleOrg(CloudOrganization organization,
-			CloudUser user, String roleName) {
-		Assert.notNull(organization, "Organization must not be null");
-		Assert.notNull(user, "User must not be null");
-		Assert.notNull(roleName, "RoleName label must not be null");
-		UUID orgGuid = organization.getMeta().getGuid();
-		UUID userGuid = user.getMeta().getGuid();
-		String urlPath = "/v2/organizations/" + orgGuid + "/" + roleName + "/" + userGuid;
+	public void removeOrganizationManager(String orgName, String userGuid) {
+		Assert.notNull(orgName, "orgName must not be null");
+		Assert.notNull(userGuid, "User must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		String orgGuid = organization.getMeta().getGuid().toString();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "managers" + "/" + userGuid;
 		getRestTemplate().delete(getUrl(urlPath));
 	}
 
 	@Override
-	public void removeUserFromRoleSpace(CloudSpace space, CloudUser user,
-			String roleName) {
+	public void removeOrganizationBillingManager(String orgName, String userGuid) {
+		Assert.notNull(orgName, "orgName must not be null");
+		Assert.notNull(userGuid, "User must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		String orgGuid = organization.getMeta().getGuid().toString();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "billing_managers" + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));		
+	}
+	
+	@Override
+	public void removeOrganizationAuditor(String orgName, String userGuid) {
+		Assert.notNull(orgName, "orgName must not be null");
+		Assert.notNull(userGuid, "User must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		String orgGuid = organization.getMeta().getGuid().toString();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "auditors" + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeSpaceManager(CloudSpace space, String userGuid) {
 		Assert.notNull(space, "Space must not be null");
-		Assert.notNull(user, "User must not be null");
-		Assert.notNull(roleName, "RoleName must not be null");
-		UUID spaceGuid = space.getMeta().getGuid();
-		UUID userGuid = user.getMeta().getGuid();
-		String urlPath = "/v2/spaces/" + spaceGuid + "/" + roleName + "/" + userGuid;
-		getRestTemplate().delete(getUrl(urlPath));	
+		Assert.notNull(userGuid, "userGuid must not be null");
+		String spaceGuid = space.getMeta().getGuid().toString();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "managers" + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeSpaceDeveloper(CloudSpace space, String userGuid) {
+		Assert.notNull(space, "Space must not be null");
+		Assert.notNull(userGuid, "userGuid must not be null");
+		String spaceGuid = space.getMeta().getGuid().toString();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "developers" + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));
+	}
+
+	@Override
+	public void removeSpaceAuditor(CloudSpace space, String userGuid) {
+		Assert.notNull(space, "Space must not be null");
+		Assert.notNull(userGuid, "userGuid must not be null");
+		String spaceGuid = space.getMeta().getGuid().toString();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "auditors" + "/" + userGuid;
+		getRestTemplate().delete(getUrl(urlPath));
 	}
 
 	@Override
@@ -3310,5 +3250,212 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 	@Override
 	public List<CloudUser> getSpaceDevelopers(String spaceGuid) {
 		return this.getUsersBySpaceRole(spaceGuid, "developers");
+	}
+
+	@Override
+	public Boolean isOrganizationManager(String orgName, String username) {
+		List<CloudUser> organizationManagers = this.getOrganizationManagers(orgName);
+		for (CloudUser user : organizationManagers) {
+			if (user.getName().equals(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Boolean isOrganizationBillingManager(String orgName, String username) {
+		List<CloudUser> orgizationBillingManagers = this.getOrgizationBillingManagers(orgName);
+		for (CloudUser user : orgizationBillingManagers) {
+			if (user.getName().equals(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Boolean isOrganizationAuditor(String orgName, String username) {
+		List<CloudUser> orgizationAuditors = this.getOrgizationAuditors(orgName);
+		for (CloudUser user : orgizationAuditors) {
+			if (user.getName().endsWith(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Boolean isSpaceManager(String spaceGuid, String username) {
+		List<CloudUser> spaceManagers = this.getSpaceManagers(spaceGuid);
+		for (CloudUser user : spaceManagers) {
+			if (user.getName().equals(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Boolean isSpaceAuditor(String spaceGuid, String username) {
+		List<CloudUser> spaceAuditors = this.getSpaceAuditors(spaceGuid);
+		for (CloudUser user : spaceAuditors) {
+			if (user.getName().equals(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Boolean isSpaceDeveloper(String spaceGuid, String username) {
+		List<CloudUser> spaceDevelopers = this.getSpaceDevelopers(spaceGuid);
+		for (CloudUser user : spaceDevelopers) {
+			if (user.getName().equals(username)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public void associateManagerOrganization(String orgName, String username) {
+		Assert.notNull(orgName, "Organization must not be null");
+		Assert.notNull(username, "username must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		CloudUser cloudUser = this.getUsersummaryFromUserName(username);
+		UUID userGuid = cloudUser.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "managers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);		
+	}
+	
+	@Override
+	public void associateManagerOrganizationTeam(String orgName, String userGuid) {
+		Assert.notNull(orgName, "Organization must not be null");
+		Assert.notNull(userGuid, "username must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);	
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "managers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+	
+	@Override
+	public CloudUser getCloudUserFromOrganizationTeam(String orgName,
+			String username) {
+		CloudUser cloudUser = null;
+		for (CloudUser user : this.getUsersByOrgName(orgName)) {
+			if (user.getName().equals(username)) {
+				cloudUser = user;
+			}
+		}
+		return cloudUser;
+	}
+
+	@Override
+	public void associateBillingManagerOrganization(String orgName,
+			String username) {
+		Assert.notNull(orgName, "Organization must not be null");
+		Assert.notNull(username, "username must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		CloudUser cloudUser = this.getUsersummaryFromUserName(username);
+		UUID userGuid = cloudUser.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "billing_managers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);		
+	}
+	
+	@Override
+	public void associateBillingManagerOrganizationTeam(String orgName,
+			String userGuid) {
+		Assert.notNull(orgName, "Organization must not be null");
+		Assert.notNull(userGuid, "username must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "billing_managers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateAuditorOrganization(String orgName, String username) {
+		Assert.notNull(orgName, "Organization must not be null");
+		Assert.notNull(username, "username must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		CloudUser cloudUser = this.getUsersummaryFromUserName(username);
+		UUID userGuid = cloudUser.getMeta().getGuid();
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "auditors" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+	
+	@Override
+	public void associateAuditorOrganizationTeam(String orgName, String userGuid) {
+		Assert.notNull(orgName, "Organization must not be null");
+		Assert.notNull(userGuid, "username must not be null");
+		CloudOrganization organization = this.getOrgByName(orgName, true);
+		UUID orgGuid = organization.getMeta().getGuid();
+		String urlPath = "/v2/organizations/" + orgGuid + "/" + "auditors" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateManagerSpace(CloudSpace cloudSpace, String username) {
+		Assert.notNull(cloudSpace, "cloudSpace must not be null");
+		Assert.notNull(username, "username must not be null");
+		CloudUser cloudUser = this.getUsersummaryFromUserName(username);
+		UUID spaceGuid = cloudSpace.getMeta().getGuid();
+		UUID userGuid = cloudUser.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "managers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateManagerSpaceTeam(CloudSpace cloudSpace, String userGuid) {
+		Assert.notNull(cloudSpace, "cloudSpace must not be null");
+		Assert.notNull(userGuid, "username must not be null");
+		UUID spaceGuid = cloudSpace.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "managers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateDeveloperSpace(CloudSpace cloudSpace, String username) {
+		Assert.notNull(cloudSpace, "cloudSpace must not be null");
+		Assert.notNull(username, "username must not be null");
+		CloudUser cloudUser = this.getUsersummaryFromUserName(username);
+		UUID spaceGuid = cloudSpace.getMeta().getGuid();
+		UUID userGuid = cloudUser.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "developers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+	
+	@Override
+	public void associateDeveloperSpaceTeam(CloudSpace cloudSpace,
+			String userGuid) {
+		Assert.notNull(cloudSpace, "cloudSpace must not be null");
+		Assert.notNull(userGuid, "username must not be null");
+		UUID spaceGuid = cloudSpace.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "developers" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);		
+	}
+
+	@Override
+	public void associateAuditorSpace(CloudSpace cloudSpace, String username) {
+		Assert.notNull(cloudSpace, "cloudSpace must not be null");
+		Assert.notNull(username, "username must not be null");
+		CloudUser cloudUser = this.getUsersummaryFromUserName(username);
+		UUID spaceGuid = cloudSpace.getMeta().getGuid();
+		UUID userGuid = cloudUser.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "auditors" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);
+	}
+
+	@Override
+	public void associateAuditorSpaceTeam(CloudSpace cloudSpace, String userGuid) {
+		Assert.notNull(cloudSpace, "cloudSpace must not be null");
+		Assert.notNull(userGuid, "username must not be null");
+		UUID spaceGuid = cloudSpace.getMeta().getGuid();
+		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "auditors" + "/" + userGuid;
+		getRestTemplate().put(getUrl(urlPath), null);	
 	}
 }

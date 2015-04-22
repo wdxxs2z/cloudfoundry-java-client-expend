@@ -44,7 +44,6 @@ import org.cloudfoundry.client.lib.domain.CloudSpace;
 import org.cloudfoundry.client.lib.domain.CloudSpaceQuota;
 import org.cloudfoundry.client.lib.domain.CloudStack;
 import org.cloudfoundry.client.lib.domain.CloudUser;
-import org.cloudfoundry.client.lib.domain.CloudUserNoUaa;
 import org.cloudfoundry.client.lib.domain.CrashesInfo;
 import org.cloudfoundry.client.lib.domain.InstancesInfo;
 import org.cloudfoundry.client.lib.domain.Staging;
@@ -871,16 +870,6 @@ public interface CloudFoundryOperations {
 	void associateUserWithOrg(CloudOrganization organization,CloudUser user);
 	
 	/**
-	 * Associate User with the Organization role
-	 * */
-	void associateUserWithOrgRole(CloudOrganization organization,CloudUser user,String roleName);
-	
-	/**
-	 * Associate User with the SpaceRole
-	 * */
-	void associateUserWithSpaceRole(CloudSpace space, CloudUser user,String roleName);
-	
-	/**
 	 * Associate Organization with the User
 	 * */
 	void associateOrgWithUser(CloudUser user, CloudOrganization organization);
@@ -914,16 +903,6 @@ public interface CloudFoundryOperations {
 	 * Remove User from the Organization
 	 * */
 	void removeUserFormOrg(CloudOrganization organization, CloudUser user);
-	
-	/**
-	 * Remove User from the Role Organization
-	 * */
-	void removeUserFromRoleOrg(CloudOrganization organization, CloudUser user, String roleName);
-	
-	/**
-	 * Remove User from the Role Space
-	 * */
-	void removeUserFromRoleSpace(CloudSpace space, CloudUser user, String roleName);
 	
 	/**
 	 * Remove Organization from the User
@@ -1206,38 +1185,14 @@ public interface CloudFoundryOperations {
 	CloudServiceInstance getServiceInstance(String service);
 	
 	/**
-	 * getOrganizationAuditors
-	 * @param give organization name
-	 * @return List<CloudUser> info
-	 * */
-	List<CloudUserNoUaa> getOrganizationUsersByRoleNoUaa(String orgName, String roleName);
-
-	/**
-	 * getOrganizationUsersNoUaa
-	 * @param give organization name
-	 * @return List<CloudUserNoUaa>
-	 * */
-	List<CloudUserNoUaa> getOrganizationUsersNoUaa(String orgName);
-	
-	/**
-	 * getSpaceAuditors
-	 * @param give space
-	 * */
-	List<CloudUserNoUaa> getSpaceUsersByRoleNoUaa(String spaceGuid, String roleName);
-	
-	/**
-	 * getUsersNoUaa
-	 * @return List<CloudUserNoUaa>
-	 * */
-	List<CloudUserNoUaa> getUsersNoUaa();
-	
-	/**
-	 * getUsersNoUaa
+	 * getCloudUserFromOrganizationTeam 
+	 * This function is get cloudUser from organization 
+	 * @param orgName
 	 * @param username
-	 * @return CloudUserNoUaa
+	 * @return CloudUser
 	 * */
-	CloudUserNoUaa findUserByNameNoUaa(String username);
-	
+	CloudUser getCloudUserFromOrganizationTeam(String orgName, String username);
+			
 	/**
 	 * getOrganizationManagers
 	 * @param orgName
@@ -1279,5 +1234,203 @@ public interface CloudFoundryOperations {
 	 * @return getSpaceDevelopers
 	 * */
 	List<CloudUser> getSpaceDevelopers(String spaceGuid);
+	
+	/**
+	 * isOrganizationManager by the organization and user
+	 * @param orgName
+	 * @param username
+	 * @return Boolean 
+	 * */
+	Boolean isOrganizationManager(String orgName, String username);
+	
+	/**
+	 * isOrganizationBillingManager by the organization and user
+	 * @param orgName
+	 * @param username
+	 * */
+	Boolean isOrganizationBillingManager(String orgName, String username);
+	
+	/**
+	 * isOrganizationAuditor by orgName and user
+	 * @param orgName
+	 * @param username
+	 * @return Boolean isOrganizationAuditor
+	 * */
+	Boolean isOrganizationAuditor(String orgName, String username);
+	
+	/**
+	 * isSpaceManager
+	 * @param target organization session space
+	 * @param username
+	 * @return Boolean isSpaceManager
+	 * */
+	Boolean isSpaceManager(String spaceGuid, String username);
+	
+	/**
+	 * isSpaceAuditor
+	 * @param target organization session space
+	 * @param username
+	 * @return Boolean isSpaceAuditor
+	 * */
+	Boolean isSpaceAuditor(String spaceGuid, String username);
+	
+	/**
+	 * isSpaceDeveloper
+	 * @param target organization session space
+	 * @param username
+	 * @return Boolean isSpaceDeveloper
+	 * */
+	Boolean isSpaceDeveloper(String spaceGuid, String username);
+	
+	/**
+	 * associateManagerOrganization add an user to organization manager role
+	 * This function will query all users in CloudFoundry impotent!
+	 * function role: admin
+	 * @param orgName
+	 * @param username
+	 * */
+	void associateManagerOrganization(String orgName, String username);
+	
+	/**
+	 * associateManagerOrganizationTeam
+	 * This function will search one exist organization users' team and associate role 2 the user
+	 * function role: organization-manager
+	 * @param orgName
+	 * @param userGuid
+	 * */
+	void associateManagerOrganizationTeam(String orgName, String userGuid);
+	
+	/**
+	 * associateBillingManagerOrganization add an user to Billing organization manager role
+	 * This function will query all users in CloudFoundry impotent!
+	 * function role: admin
+	 * @param orgName
+	 * @param username
+	 * */
+	void associateBillingManagerOrganization(String orgName, String username);
+	
+	/**
+	 * associateBillingManagerOrganizationTeam add an user to Billing organization manager role
+	 * This function will search one exist organization users' team and associate role 2 the user
+	 * function role: organization manager
+	 * @param orgName
+	 * @param userGuid
+	 * */
+	void associateBillingManagerOrganizationTeam(String orgName, String userGuid);
+	
+	/**
+	 * associateBillingManagerOrganization add an user to organization manager role
+	 * This function will query all users in CloudFoundry impotent!
+	 * function role: admin
+	 * @param orgName
+	 * @param username
+	 * */
+	void associateAuditorOrganization(String orgName, String username);
+	
+	/**
+	 * associateAuditorOrganizationTeam add an user to organization manager role
+	 * This function will search one exist organization users' team and associate role 2 the user
+	 * function role: organization manager
+	 * @param orgName
+	 * @param userGuid
+	 * */
+	void associateAuditorOrganizationTeam(String orgName, String userGuid);
+	
+	/**
+	 * associateManagerSpace add an user to space manager role
+	 * function role: admin
+	 * @param CloudSpace
+	 * @param username
+	 * */
+	void associateManagerSpace(CloudSpace cloudSpace, String username);
+	
+	/**
+	 * associateManagerSpaceTeam add an user to space manager role
+	 * function role: organization manager
+	 * @param CloudSpace
+	 * @param userGuid
+	 * */
+	void associateManagerSpaceTeam(CloudSpace cloudSpace, String userGuid);
+	
+	/**
+	 * associateDeveloperSpace add an user to space manager role
+	 * function role: admin 
+	 * @param CloudSpace
+	 * @param username
+	 * */
+	void associateDeveloperSpace(CloudSpace cloudSpace, String username);
+	
+	/**
+	 * associateDeveloperSpaceTeam add an user to space manager role
+	 * function role: organization manager 
+	 * @param CloudSpace
+	 * @param userGuid
+	 * */
+	void associateDeveloperSpaceTeam(CloudSpace cloudSpace, String userGuid);
+	
+	/**
+	 * associateAuditorSpace add an user to space manager role
+	 * function role: admin
+	 * @param CloudSpace
+	 * @param username
+	 * */
+	void associateAuditorSpace(CloudSpace cloudSpace, String username);
+	
+	/**
+	 * associateAuditorSpaceTeam add an user to space manager role
+	 * function role: organization manager
+	 * @param CloudSpace
+	 * @param userGuid
+	 * */
+	void associateAuditorSpaceTeam(CloudSpace cloudSpace, String userGuid);
+	
+	/**
+	 * removeOrganizationManager remove user from the organization team
+	 * function role: organization manager
+	 * @param organization name
+	 * @param userGuid
+	 * */
+	void removeOrganizationManager(String orgName, String userGuid);
+	
+	/**
+	 * removeOrganizationBillingManager remove user from the billingManager team
+	 * function role: organization manager
+	 * @param orgName
+	 * @param userGuid
+	 * */
+	void removeOrganizationBillingManager(String orgName, String userGuid);
+	
+	/**
+	 * removeOrganizationAuditor remove user from the auditor team
+	 * function role: organization manager
+	 * @param orgName
+	 * @param userGuid
+	 * */
+	void removeOrganizationAuditor(String orgName, String userGuid);
+	
+	/**
+	 * removeSpaceManager remove user from the space manager team
+	 * function role: organization manager
+	 * @param space
+	 * @param userGuid
+	 * */
+	void removeSpaceManager(CloudSpace space, String userGuid);
+	
+	/**
+	 * removeSpaceDeveloper remove user from the space developer team
+	 * function role: organization manager
+	 * @param space
+	 * @param userGuid
+	 * */
+	void removeSpaceDeveloper(CloudSpace space, String userGuid);
+	
+	/**
+	 * removeSpaceAuditor remove user from the space Auditor team
+	 * function role: organization manager
+	 * @param space
+	 * @param userGuid
+	 * */
+	void removeSpaceAuditor(CloudSpace space, String userGuid);
+	
 	
 }
