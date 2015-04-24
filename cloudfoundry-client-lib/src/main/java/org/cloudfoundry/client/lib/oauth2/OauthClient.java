@@ -232,6 +232,17 @@ public class OauthClient {
 	}
 
 	public String createUser(String username, String password, String familyName, String givenName, String phoneNumber) {
+		String userIdByName = getUserIdByName(username);
+		if (userIdByName == null) {
+			return doCreateUser(username,password,familyName,givenName,phoneNumber);
+		}else{
+			throw new IllegalStateException("Unable to create user --" +
+					" it has " + username + " exist.");
+		}
+	}
+	
+	private String doCreateUser(String username, String password,
+			String familyName, String givenName, String phoneNumber) {
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
 		headers.add("Content-Type", "application/json;charset=utf-8");
@@ -266,8 +277,9 @@ public class OauthClient {
 		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
 		String UID = (String) responseMap.get("id");	
 		return UID;
+		
 	}
-	
+
 	public void updateUser(CloudUser cloudUser){	
 		String user_id = cloudUser.getMeta().getGuid().toString();
 		String username = cloudUser.getName();

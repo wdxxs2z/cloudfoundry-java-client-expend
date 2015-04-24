@@ -1840,9 +1840,36 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return resourceMapper.getGuidOfResource(respMap);
 	}
 
+	@Override
+	public void addSharedDomain(String sharedDomainName) {
+		UUID domainGuid = getDomainGuid(sharedDomainName, false);
+		if (domainGuid == null) {
+			String urlPath = "/v2/domains";
+			HashMap<String, Object> domainRequest = new HashMap<String, Object>();
+			domainRequest.put("name", sharedDomainName);
+			domainRequest.put("wildcard", true);
+			getRestTemplate().postForObject(getUrl(urlPath), domainRequest, String.class);
+		}
+	}
+
 	private void doDeleteDomain(UUID domainGuid) {
 		Map<String, Object> urlVars = new HashMap<String, Object>();
 		String urlPath = "/v2/private_domains/{domain}";
+		urlVars.put("domain", domainGuid);
+		getRestTemplate().delete(getUrl(urlPath), urlVars);
+	}
+
+	@Override
+	public void removeShareDomain(String sharedDomainName) {
+		assertSpaceProvided("delete domain");
+		UUID domainGuid = getDomainGuid(sharedDomainName, true);
+		List<CloudRoute> routes = getRoutes(sharedDomainName);
+		if (routes.size() > 0) {
+			throw new IllegalStateException("Unable to remove domain that is in use --" +
+					" it has " + routes.size() + " routes.");
+		}
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		String urlPath = "/v2/shared_domains/{domain}";
 		urlVars.put("domain", domainGuid);
 		getRestTemplate().delete(getUrl(urlPath), urlVars);
 	}
@@ -2207,10 +2234,7 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 				cloudUser.setFamilyName((String)userInfo.get("familyName"));
 				cloudUser.setGivenName((String)userInfo.get("givenName"));
 				List<String> emailList = new ArrayList<String>();
-				List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
-				for (Map<String, String> email : emails) {				
-					emailList.add((String)email.get("value"));
-				}
+				emailList.add(cloudUser.getName());
 				cloudUser.setEmails(emailList);
 				
 				List<String> phoneList = new ArrayList<String>();

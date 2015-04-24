@@ -464,4 +464,8 @@ public interface CloudControllerClient {
 
 	void removeSpaceAuditor(CloudSpace space, String userGuid);
 
+	void addSharedDomain(String sharedDomainName);
+
+	void removeShareDomain(String sharedDomainName);
+
 }

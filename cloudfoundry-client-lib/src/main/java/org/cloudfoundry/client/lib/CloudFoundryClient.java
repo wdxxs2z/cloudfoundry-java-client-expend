@@ -1116,4 +1116,14 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	public void removeSpaceAuditor(CloudSpace space, String userGuid) {
 		cc.removeSpaceAuditor(space, userGuid);		
 	}
+
+	@Override
+	public void addSharedDomain(String sharedDomainName) {
+		cc.addSharedDomain(sharedDomainName);
+	}
+
+	@Override
+	public void removeShareDomain(String sharedDomainName) {
+		cc.removeShareDomain(sharedDomainName);
+	}
 }

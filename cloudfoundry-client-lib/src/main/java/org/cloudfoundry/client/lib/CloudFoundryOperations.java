@@ -1432,5 +1432,19 @@ public interface CloudFoundryOperations {
 	 * */
 	void removeSpaceAuditor(CloudSpace space, String userGuid);
 	
+	/**
+	 * addSharedDomain add shared domain not the private domain.
+	 * This function is dangerous.
+	 * @param sharedDomainName
+	 * */
+	void addSharedDomain(String sharedDomainName);
+	
+	/**
+	 * removeShareDomain remove sharedDomain not the private domain.
+	 * This function is dangerous.
+	 * @param sharedDomainName
+	 * */
+	void removeShareDomain(String sharedDomainName);
+	
 	
 }
