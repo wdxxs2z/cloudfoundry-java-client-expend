@@ -2821,6 +2821,22 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 	}
 
 	@Override
+	public void updateOrganization(CloudOrganization organization) {
+		List<CloudOrganization> organizations = getOrganizations();
+		boolean isExist = false;
+		for(CloudOrganization org : organizations){
+			if (org.getMeta().getGuid().toString().equals(organization.getMeta().getGuid().toString())) {
+				isExist = true;
+			}
+		}
+		Assert.isTrue(isExist, "Cannot update organization if it does not first exist");
+		HashMap<String, Object> organizationRequest = new HashMap<String, Object>();
+		organizationRequest.put("name", organization.getName());
+		String urlPath = "/v2/organizations/" + organization.getMeta().getGuid().toString();
+		getRestTemplate().put(getUrl(urlPath), organizationRequest, String.class);
+	}
+
+	@Override
 	public void createSpace(String spaceName, String organizationName) {
 		
 		CloudOrganization cloudOrganization = getOrgByName(organizationName, true);

@@ -1446,5 +1446,9 @@ public interface CloudFoundryOperations {
 	 * */
 	void removeShareDomain(String sharedDomainName);
 	
-	
+	/**
+	 * updateOrganization update organization
+	 * function role : admin
+	 * */
+	void updateOrganization(CloudOrganization organization);
 }

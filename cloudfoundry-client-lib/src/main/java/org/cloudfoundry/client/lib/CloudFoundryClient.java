@@ -1126,4 +1126,10 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	public void removeShareDomain(String sharedDomainName) {
 		cc.removeShareDomain(sharedDomainName);
 	}
+
+	@Override
+	public void updateOrganization(CloudOrganization organization) {
+		cc.updateOrganization(organization);
+	}
+
 }

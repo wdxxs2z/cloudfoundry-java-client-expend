@@ -468,4 +468,6 @@ public interface CloudControllerClient {
 
 	void removeShareDomain(String sharedDomainName);
 
+	void updateOrganization(CloudOrganization organization);
+
 }
