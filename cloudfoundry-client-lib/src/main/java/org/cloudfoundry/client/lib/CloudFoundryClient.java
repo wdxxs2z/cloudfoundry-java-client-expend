@@ -1132,4 +1132,71 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 		cc.updateOrganization(organization);
 	}
 
+	@Override
+	public String getOrganizationNameWithGuid(String orgGuid) {
+		return cc.getOrganizationNameWithGuid(orgGuid);
+	}
+
+	@Override
+	public String getSpaceNameWithGuid(String spaceGuid) {
+		return cc.getSpaceNameWithGuid(spaceGuid);
+	}
+
+	@Override
+	public Integer getOrganizationMemoryUsage(String organizationName) {
+		return cc.getOrganizationMemoryUsage(organizationName);
+	}
+
+	@Override
+	public UUID getOrganizationUserGuid(String orgName, String username) {
+		return cc.getOrganizationUserGuid(orgName, username);
+	}
+
+	@Override
+	public List<String> getUserRolesWithOrganization(String orgName,
+			String username) {
+		return cc.getUserRolesWithOrganization(orgName, username);
+	}
+
+	@Override
+	public OAuth2AccessToken getAccessCodeToken(CloudCredentials credentials) {
+		return cc.getAccessCodeToken(credentials);
+	}
+
+	@Override
+	public List<CloudEvent> getAppEvent(String appGuid) {
+		return cc.getAppEvent(appGuid);
+	}
+
+	@Override
+	public CloudUser findADUserByUsername(String username, Boolean isAdmin) {
+		return cc.findADUserByUsername(username, isAdmin);
+	}
+
+	@Override
+	public List<CloudUser> getADAllUsers() {
+		return cc.getADAllUsers();
+	}
+
+	@Override
+	public String getCurrentUserId() {
+		return cc.getCurrentUserId();
+	}
+
+	@Override
+	public List<CloudOrganization> getCurrentUserOrganizations() {
+		return cc.getCurrentUserOrganizations();
+	}
+
+	@Override
+	public List<Map<String, Object>> getUaaUsersWithType(String type) {
+		return cc.getUaaUsersWithType(type);
+	}
+
+	@Override
+	public void resetUserPassword(String username) {
+		// TODO Auto-generated method stub
+		cc.resetUserPassword(username);
+	}
+
 }

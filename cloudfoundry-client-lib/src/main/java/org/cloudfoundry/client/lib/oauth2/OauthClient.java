@@ -18,10 +18,12 @@ package org.cloudfoundry.client.lib.oauth2;
 
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.tomcat.util.codec.binary.Base64;
 import org.cloudfoundry.client.lib.CloudCredentials;
 import org.cloudfoundry.client.lib.CloudFoundryException;
 import org.cloudfoundry.client.lib.domain.CloudUser;
@@ -35,9 +37,13 @@ import org.springframework.security.oauth2.client.resource.OAuth2AccessDeniedExc
 import org.springframework.security.oauth2.client.resource.OAuth2ProtectedResourceDetails;
 import org.springframework.security.oauth2.client.token.AccessTokenRequest;
 import org.springframework.security.oauth2.client.token.DefaultAccessTokenRequest;
+import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeAccessTokenProvider;
+import org.springframework.security.oauth2.client.token.grant.code.AuthorizationCodeResourceDetails;
 import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordAccessTokenProvider;
 import org.springframework.security.oauth2.client.token.grant.password.ResourceOwnerPasswordResourceDetails;
 import org.springframework.security.oauth2.common.AuthenticationScheme;
+import org.springframework.security.oauth2.common.DefaultOAuth2AccessToken;
+import org.springframework.security.oauth2.common.DefaultOAuth2RefreshToken;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.web.client.RestTemplate;
 
@@ -70,8 +76,11 @@ public class OauthClient {
 			if (credentials.getToken() != null) {
 				this.token = credentials.getToken();
 			} else {
-				this.token = createToken(credentials.getEmail(), credentials.getPassword(),
-						credentials.getClientId(), credentials.getClientSecret());
+				if (credentials.getCode()==null) {
+					this.token = createToken(credentials.getEmail(), credentials.getPassword(),credentials.getClientId(), credentials.getClientSecret());
+				}else{
+					
+				}
 			}
 		}
 	}
@@ -87,10 +96,13 @@ public class OauthClient {
 		}
 
 		if (token.getExpiresIn() < 50) { // 50 seconds before expiration? Then refresh it.
-			token = refreshToken(token, credentials.getEmail(), credentials.getPassword(),
-					credentials.getClientId(), credentials.getClientSecret());
+			if (token.getAdditionalInformation().get("message") == null) {
+				token = refreshToken(token, credentials.getEmail(), credentials.getPassword(),
+						credentials.getClientId(), credentials.getClientSecret());
+			}else{
+				token = refreshCodeToken(token, credentials);
+			}			
 		}
-
 		return token;
 	}
 
@@ -101,6 +113,98 @@ public class OauthClient {
 		}
 		return null;
 	}
+	
+	public OAuth2AccessToken createAccessCodeToken(CloudCredentials credentials) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Content-Type", "application/json;charset=utf-8");
+		headers.add("accept", "application/json");
+		String base = credentials.getClientId() + ":" + credentials.getClientSecret();
+		String base64 = Base64.encodeBase64String(base.getBytes());
+		headers.add("Authorization", "Basic " + base64);
+		Map<String, Object> body = new HashMap<String, Object>();
+		body.put("code", credentials.getCode());
+		String jsonBody = JsonUtil.convertToJson(body);
+		HttpEntity<String> httpEntity = new HttpEntity<String>(jsonBody, headers);
+		
+		ResponseEntity<String> accessToken = restTemplate.postForEntity(authorizationUrl + "/oauth/token?"
+				+ "grant_type=authorization_code"
+				+ "&redirect_uri=" + credentials.getRedirect_uri()
+				+ "&code=" + credentials.getCode(), 
+				httpEntity, String.class);
+		Map<String, Object> tokenMap = JsonUtil.convertJsonToMap(accessToken.getBody());
+		String access_token = (String)tokenMap.get("access_token");
+		Integer expires_in = (Integer)tokenMap.get("expires_in");
+		String token_type = (String)tokenMap.get("token_type");
+		String refresh_token = (String)tokenMap.get("refresh_token");
+		long expires_in_time = expires_in;
+		DefaultOAuth2AccessToken token = new DefaultOAuth2AccessToken(access_token);
+		token.setExpiration(new Date(expires_in_time * 1000 + System.currentTimeMillis()));
+		token.setTokenType(token_type);		
+		Map<String,Object> info = new HashMap<String, Object>();
+		info.put("message", "This is code token grant type");
+		token.setAdditionalInformation(info);
+		DefaultOAuth2RefreshToken refreshToken = new DefaultOAuth2RefreshToken(refresh_token);
+		token.setRefreshToken(refreshToken);
+		return token;
+	}
+	
+	@SuppressWarnings("unused")
+	private OAuth2AccessToken createCodeToken (CloudCredentials credentials) {
+		//details
+		AuthorizationCodeResourceDetails details = new AuthorizationCodeResourceDetails();
+		details.setAccessTokenUri(authorizationUrl + "/oauth/token");
+		details.setUserAuthorizationUri(authorizationUrl + "/oauth/authorize");
+		details.setClientId(credentials.getClientId());
+		details.setClientSecret(credentials.getClientSecret());
+		details.setPreEstablishedRedirectUri(credentials.getRedirect_uri());
+		details.setAuthenticationScheme(AuthenticationScheme.header);
+		details.setGrantType("authorization_code");
+		OAuth2ProtectedResourceDetails resource  = details;
+		//request	
+		AccessTokenRequest request = new DefaultAccessTokenRequest();
+		request.setAuthorizationCode(credentials.getCode());
+		//provider
+		AuthorizationCodeAccessTokenProvider provider = new AuthorizationCodeAccessTokenProvider();
+		try {
+			return provider.obtainAccessToken(resource, request);
+		} catch (OAuth2AccessDeniedException oauthEx) {
+			HttpStatus status = HttpStatus.valueOf(oauthEx.getHttpErrorCode());
+			CloudFoundryException cfEx = new CloudFoundryException(status, oauthEx.getMessage());
+			cfEx.setDescription(oauthEx.getSummary());
+			throw cfEx;
+		}
+	}
+	
+	private OAuth2AccessToken refreshCodeToken(OAuth2AccessToken token,CloudCredentials credentials) {//code 形式的refresh token
+		HttpHeaders headers = new HttpHeaders();
+		headers.add("Content-Type", "application/json;charset=utf-8");
+		headers.add("accept", "application/json");
+		String base = credentials.getClientId() + ":" + credentials.getClientSecret();
+		String base64 = Base64.encodeBase64String(base.getBytes());
+		headers.add("Authorization", "Basic " + base64);
+		HttpEntity<String> httpEntity = new HttpEntity<String>(headers);
+		ResponseEntity<String> accessToken = restTemplate.postForEntity(authorizationUrl + "/oauth/token?"
+				+ "grant_type=refresh_token"
+				+ "&redirect_uri=" + credentials.getRedirect_uri()
+				+ "&refresh_token=" + token.getRefreshToken().getValue(),
+				httpEntity, String.class);
+		Map<String, Object> tokenMap = JsonUtil.convertJsonToMap(accessToken.getBody());
+		String access_token = (String)tokenMap.get("access_token");
+		Integer expires_in = (Integer)tokenMap.get("expires_in");
+		String token_type = (String)tokenMap.get("token_type");
+		String refresh_token = (String)tokenMap.get("refresh_token");
+		long expires_in_time = expires_in;
+		DefaultOAuth2AccessToken defaultToken = new DefaultOAuth2AccessToken(access_token);
+		defaultToken.setExpiration(new Date(expires_in_time * 1000 + System.currentTimeMillis()));
+		defaultToken.setTokenType(token_type);		
+		Map<String,Object> info = new HashMap<String, Object>();
+		info.put("message", "This is code token grant type");
+		defaultToken.setAdditionalInformation(info);
+		DefaultOAuth2RefreshToken refreshToken = new DefaultOAuth2RefreshToken(refresh_token);
+		defaultToken.setRefreshToken(refreshToken);
+		return defaultToken;
+	}
+
 
 	private OAuth2AccessToken createToken(String username, String password, String clientId, String clientSecret) {
 		OAuth2ProtectedResourceDetails resource = getResourceDetails(username, password, clientId, clientSecret);
@@ -116,33 +220,8 @@ public class OauthClient {
 			cfEx.setDescription(oauthEx.getSummary());
 			throw cfEx;
 		}
-	}
-
-	private OAuth2AccessToken refreshToken(OAuth2AccessToken currentToken, String username, String password, String clientId, String clientSecret) {
-		OAuth2ProtectedResourceDetails resource = getResourceDetails(username, password, clientId, clientSecret);
-		AccessTokenRequest request = createAccessTokenRequest(username, password);
-
-		ResourceOwnerPasswordAccessTokenProvider provider = createResourceOwnerPasswordAccessTokenProvider();
-
-		return provider.refreshAccessToken(resource, currentToken.getRefreshToken(), request);
-	}
-
-	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public void changePassword(String oldPassword, String newPassword) {
-		HttpHeaders headers = new HttpHeaders();
-		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
-		HttpEntity info = new HttpEntity(headers);
-		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/userinfo", HttpMethod.GET, info, String.class);
-		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
-		String userId = (String) responseMap.get("user_id");
-		Map<String, Object> body = new HashMap<String, Object>();
-		body.put("schemas", new String[] {"urn:scim:schemas:core:1.0"});
-		body.put("password", newPassword);
-		body.put("oldPassword", oldPassword);
-		HttpEntity<Map> httpEntity = new HttpEntity<Map>(body, headers);
-		restTemplate.put(authorizationUrl + "/User/{id}/password", httpEntity, userId);
-	}
-
+	}	
+	
 	protected ResourceOwnerPasswordAccessTokenProvider createResourceOwnerPasswordAccessTokenProvider() {
 		ResourceOwnerPasswordAccessTokenProvider resourceOwnerPasswordAccessTokenProvider = new ResourceOwnerPasswordAccessTokenProvider();
 		resourceOwnerPasswordAccessTokenProvider.setRequestFactory(restTemplate.getRequestFactory()); //copy the http proxy along
@@ -164,8 +243,69 @@ public class OauthClient {
 		resource.setId(clientId);
 		resource.setClientAuthenticationScheme(AuthenticationScheme.header);
 		resource.setAccessTokenUri(authorizationUrl + "/oauth/token");
-
 		return resource;
+	}
+	
+	private OAuth2AccessToken refreshToken(OAuth2AccessToken currentToken, String username, String password, String clientId, String clientSecret) {
+		OAuth2ProtectedResourceDetails resource = getResourceDetails(username, password, clientId, clientSecret);
+		AccessTokenRequest request = createAccessTokenRequest();
+
+		ResourceOwnerPasswordAccessTokenProvider provider = createResourceOwnerPasswordAccessTokenProvider();
+
+		return provider.refreshAccessToken(resource, currentToken.getRefreshToken(), request);
+	}
+
+	private AccessTokenRequest createAccessTokenRequest() {
+		AccessTokenRequest request = new DefaultAccessTokenRequest();
+		return request;
+	}
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public void changePassword(String oldPassword, String newPassword) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		HttpEntity info = new HttpEntity(headers);
+		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/userinfo", HttpMethod.GET, info, String.class);
+		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
+		String userId = (String) responseMap.get("user_id");
+		Map<String, Object> body = new HashMap<String, Object>();
+		body.put("schemas", new String[] {"urn:scim:schemas:core:1.0"});
+		body.put("password", newPassword);
+		body.put("oldPassword", oldPassword);
+		HttpEntity<Map> httpEntity = new HttpEntity<Map>(body, headers);
+		restTemplate.put(authorizationUrl + "/User/{id}/password", httpEntity, userId);
+	}
+	
+	@SuppressWarnings({ "rawtypes" })
+	public void resetPassword(String username) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		headers.add("Content-Type", "application/json;charset=utf-8");
+		headers.add("accept", "application/json");
+		
+		String userGuid = this.getUserIdByName(username);
+		
+		Map<String, Object> body = new HashMap<String, Object>();
+		body.put("password", "12345678");
+		HttpEntity<Map> httpEntity = new HttpEntity<Map>(body, headers);
+		
+		restTemplate.put(authorizationUrl + "/Users/{id}/password", httpEntity, userGuid);		
+	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	public String getUserPassword(String username) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		HttpEntity info = new HttpEntity(headers);
+		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/Users?attributes=password&filter=userName eq " + "'" + username + "'", HttpMethod.GET, info, String.class);
+		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
+		ArrayList<Map<String, Object>> resources =  (ArrayList<Map<String, Object>>) responseMap.get("resources");
+		for(Map<String, Object> resource : resources){
+			if(resource.containsKey("password")){
+				return (String) resource.get("password");
+			}
+		}
+		return null;
 	}
 	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
@@ -188,6 +328,8 @@ public class OauthClient {
 	public String getUserIdByName(String userName){
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		headers.add("scope", "scim.read");
+		headers.add("aud", "scim");
 		HttpEntity info = new HttpEntity(headers);
 		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/Users?attributes=id&filter=userName eq " + "'" + userName + "'", HttpMethod.GET, info, String.class);
 		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
@@ -204,6 +346,8 @@ public class OauthClient {
 	public Map<String,Object> getUserInfo(String uuid){
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		headers.add("scope", "scim.read");
+		headers.add("aud", "scim");
 		HttpEntity info = new HttpEntity(headers);
 		//ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/Users?attributes=userName,name,emails,phoneNumbers&filter=id eq " + "'" + uuid + "'", HttpMethod.GET, info, String.class);
 		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/Users?filter=id eq " + "'" + uuid + "'", HttpMethod.GET, info, String.class);		
@@ -227,8 +371,59 @@ public class OauthClient {
 			}else{
 				usermap.put("phoneNumbers", null);
 			}
+			if(resource.containsKey("origin")){
+				usermap.put("origin", resource.get("origin"));
+			}
 		}
 		return usermap;
+	}
+	
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	public List<Map<String,Object>> getUaaUsersWithType(String type) {//根据AD域的类型列出用户详情
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		headers.add("scope", "scim.read");
+		headers.add("aud", "scim");
+		HttpEntity info = new HttpEntity(headers);
+		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/Users?filter=origin eq " + "'" + type + "'", HttpMethod.GET, info, String.class);		
+		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
+		ArrayList<Map<String, Object>> resources =  (ArrayList<Map<String, Object>>) responseMap.get("resources");
+		List<Map<String,Object>> users = new ArrayList<Map<String,Object>>();
+		for (Map<String, Object> resource : resources) {
+			Map<String,Object> usermap = new HashMap<String, Object>();
+			usermap.put("id", resource.get("id"));
+			usermap.put("userName", resource.get("userName"));
+			if(resource.containsKey("name")){
+				Map<String,String> names = (Map<String, String>) resource.get("name");
+				usermap.put("familyName", names.get("familyName"));
+				usermap.put("givenName",names.get("givenName"));
+			}
+			usermap.put("emails", resource.get("emails"));
+			if(resource.containsKey("phoneNumbers")){
+				usermap.put("phoneNumbers", resource.get("phoneNumbers"));
+			}else{
+				usermap.put("phoneNumbers", null);
+			}
+			if(resource.containsKey("origin")){
+				usermap.put("origin", resource.get("origin"));
+			}
+			if(resource.containsKey("meta")){
+				Map<String,Object> names = (Map<String, Object>) resource.get("meta");
+				usermap.put("created", names.get("created"));
+				usermap.put("lastModified",names.get("lastModified"));
+				usermap.put("version", names.get("version"));
+			}
+			if(resource.containsKey("externalId")){
+				usermap.put("externalId", resource.get("externalId"));
+			}else{
+				usermap.put("externalId", null);
+			}
+			if(resource.containsKey("active")){
+				usermap.put("active", resource.get("active"));
+			}
+			users.add(usermap);
+		}
+		return users;
 	}
 
 	public String createUser(String username, String password, String familyName, String givenName, String phoneNumber) {
@@ -239,6 +434,12 @@ public class OauthClient {
 			throw new IllegalStateException("Unable to create user --" +
 					" it has " + username + " exist.");
 		}
+	}
+	
+	protected AuthorizationCodeAccessTokenProvider createResourceOwnerCodeAccessTokenProvider() {
+		AuthorizationCodeAccessTokenProvider codeAccessTokenProvider = new AuthorizationCodeAccessTokenProvider();
+		codeAccessTokenProvider.setRequestFactory(restTemplate.getRequestFactory());
+		return codeAccessTokenProvider;
 	}
 	
 	private String doCreateUser(String username, String password,
@@ -290,6 +491,8 @@ public class OauthClient {
 		
 		HttpHeaders headers = new HttpHeaders();
 		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		headers.add("scope", "scim.write");
+		headers.add("aud", "scim");
 		headers.add("Content-Type", "application/json;charset=utf-8");
 		headers.add("accept", "application/json");
 		Map<String, Object> body = new HashMap<String, Object>();

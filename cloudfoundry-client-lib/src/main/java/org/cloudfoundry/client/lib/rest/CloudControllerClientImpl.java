@@ -553,7 +553,7 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 
 		String name = CloudUtil.parse(String.class, infoV2Map.get("name"));
 		String support = CloudUtil.parse(String.class, infoV2Map.get("support"));
-		String authorizationEndpoint = CloudUtil.parse(String.class, infoV2Map.get("token_endpoint"));
+		String authorizationEndpoint = CloudUtil.parse(String.class, infoV2Map.get("authorization_endpoint"));
 		String build = CloudUtil.parse(String.class, infoV2Map.get("build"));
 		String version = "" + CloudUtil.parse(Number.class, infoV2Map.get("version"));
 		String description = CloudUtil.parse(String.class, infoV2Map.get("description"));
@@ -596,6 +596,20 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 	}
 
 	@Override
+	public List<CloudOrganization> getCurrentUserOrganizations() {
+		String currentUserId = this.getCurrentUserId();
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		urlVars.put("guid", currentUserId);
+		String urlPath = "/v2/users/{guid}/organizations?inline-relations-depth=0";
+		List<CloudOrganization> orgs = new ArrayList<CloudOrganization>();
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, urlVars);
+		for (Map<String, Object> resource : resourceList) {
+			orgs.add(resourceMapper.mapResource(resource, CloudOrganization.class));
+		}
+		return orgs;
+	}
+
+	@Override
 	public OAuth2AccessToken login() {
 		oauthClient.init(cloudCredentials);
 		return oauthClient.getToken();
@@ -620,6 +634,12 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		} else {
 			cloudCredentials = newCloudCredentials;
 		}
+	}
+
+	@Override
+	public void resetUserPassword(String username) {
+		// TODO Auto-generated method stub
+		oauthClient.resetPassword(username);
 	}
 
 	@Override
@@ -1155,6 +1175,49 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return routeGuid;
 	}
 
+	@SuppressWarnings("static-access")
+	@Override
+	public UUID getOrganizationUserGuid(String orgName, String username) {
+		UUID orgGuid = this.getOrgByName(orgName, true).getMeta().getGuid();
+		String urlPath = "/v2/organizations/" +  orgGuid.toString() + "/users";
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		UUID userGuid = null;
+		if (resourceList.size() > 0) {
+			for (Map<String, Object> resource : resourceList) {
+				String userName = resourceMapper.getEntityAttribute(resource, "username", String.class);
+				if (userName != null && userName.equals(username)) {
+					userGuid = resourceMapper.getGuidOfResource(resource);
+					break;
+				}
+			}
+		}
+		if (userGuid == null) {
+			throw new IllegalArgumentException("User '" + username + "' not found.");
+		}
+		return userGuid;
+	}
+
+	@SuppressWarnings("static-access")
+	@Override
+	public List<String> getUserRolesWithOrganization(String orgName,
+			String username) {
+		UUID orgGuid = this.getOrgByName(orgName, true).getMeta().getGuid();
+		String urlPath = "/v2/organizations/" +  orgGuid.toString() + "/user_roles";
+		List<String> userOrgRoles = new ArrayList<String>();
+		List<Map<String, Object>> resourceList = getAllResources(urlPath, null);
+		for (Map<String, Object> resource : resourceList) {
+			String userName = resourceMapper.getEntityAttribute(resource, "username", String.class);
+			if (userName != null && userName.equals(username)) {
+				userOrgRoles = resourceMapper.getEntityAttribute(resource, "organization_roles", List.class);
+				break;
+			}
+		}
+		if (userOrgRoles == null) {
+			throw new IllegalArgumentException("user '" + username + "' not found.");
+		}
+		return userOrgRoles;
+	}
+
 	private UUID doAddRoute(String host, UUID domainGuid) {
 		assertSpaceProvided("add route");
 
@@ -1546,7 +1609,10 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 	public void updateApplicationEnv(String appName, Map<String, String> env) {
 		UUID appId = getAppId(appName);
 		HashMap<String, Object> appRequest = new HashMap<String, Object>();
-		appRequest.put("environment_json", env);
+		Map<String, Object> environment = this.getApplicationEnvironment(appName);
+		Map<String,String> existEnv = (Map<String, String>) environment.get("environment_json");
+		existEnv.putAll(env);
+		appRequest.put("environment_json", existEnv);
 		getRestTemplate().put(getUrl("/v2/apps/{guid}"), appRequest, appId);
 	}
 
@@ -2080,6 +2146,14 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return uris;
 	}
 
+	@Override
+	public String getCurrentUserId() {
+		String username = getInfo().getUser();
+		Map<String, Object> userInfo = getUserInfo(username);
+		String user_id = (String) userInfo.get("user_id");
+		return user_id;
+	}
+
 	@SuppressWarnings("restriction")
 	private Map<String, Object> getUserInfo(String user) {
 //		String userJson = getRestTemplate().getForObject(getUrl("/v2/users/{guid}"), String.class, user);
@@ -2342,6 +2416,7 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 			if(cloudUser.getName()!=null) {
 				List<String> emailList = new ArrayList<String>();
 				emailList.add(cloudUser.getName());
+				cloudUser.setEmails(emailList);
 				users.add(cloudUser);
 			}else{
 				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
@@ -2363,7 +2438,7 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 					}
 					cloudUser.setPhoneNumbers(phoneList);
 				}
-				
+				cloudUser.setOrigin((String)userInfo.get("origin"));
 				users.add(cloudUser);
 			}
 		}
@@ -2372,13 +2447,92 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 
 	@Override
 	public CloudUser findUserByUsername(String username) {
-		List<CloudUser> allUsers = this.getAllUsers();
-		for(CloudUser user : allUsers){
-			if (user.getName().equals(username)) {
-				return user;
+		CloudUser user = null;
+		String userGuid = oauthClient.getUserIdByName(username);
+		if (userGuid != null) {
+			String urlPath = "/v2/users?" + userGuid + "&inline-relations-depth=2";
+			List<Map<String, Object>> resources = getAllResources(urlPath, null);
+			if (resources.size()!=0) {
+				Map<String, Object> resource = resources.get(0);
+				user = resourceMapper.mapResource(resource, CloudUser.class);
+				Map<String, Object> userInfo = oauthClient.getUserInfo(userGuid);
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(user.getName());
+				user.setEmails(emailList);
+				user.setName(username);
+				user.setOrigin((String)userInfo.get("origin"));
+			}
+		}	
+		return user;
+	}
+	
+	@Override
+	public CloudUser findADUserByUsername(String username, Boolean isAdmin) {
+		CloudUser user = null;
+		String userGuid = oauthClient.getUserIdByName(username);
+		if (userGuid != null) {
+			String urlPath = "/v2/users?" + userGuid + "&inline-relations-depth=2";
+			List<Map<String, Object>> resources = getAllResources(urlPath, null);
+			if (resources.size()!=0) {
+				Map<String, Object> resource = resources.get(0);
+				user = resourceMapper.mapResource(resource, CloudUser.class);
+				Map<String, Object> userInfo = oauthClient.getUserInfo(userGuid);
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(user.getName());
+				user.setEmails(emailList);
+				user.setName(username);
+				user.setOrigin((String)userInfo.get("origin"));
+			}
+		}	
+		return user;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public List<CloudUser> getADAllUsers() {
+		List<CloudUser> users  = new ArrayList<CloudUser>();
+		String urlPath = "/v2/users?inline-relations-depth=2";
+		List<Map<String, Object>> resources = getAllResources(urlPath, null);
+		for (Map<String, Object> resource : resources) {
+			String user_id = "";
+			CloudUser cloudUser = resourceMapper.mapResource(resource, CloudUser.class);
+			if (cloudUser.getMeta().getGuid() != null) {
+				user_id = cloudUser.getMeta().getGuid().toString();
+			}else{
+				continue;
+			}
+			if(cloudUser.getName()!=null) {
+				List<String> emailList = new ArrayList<String>();
+				emailList.add(cloudUser.getName());
+				cloudUser.setEmails(emailList);
+				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+				cloudUser.setOrigin((String)userInfo.get("origin"));
+				users.add(cloudUser);
+			}else{
+				Map<String, Object> userInfo = oauthClient.getUserInfo(user_id.toString());
+				cloudUser.setName((String)userInfo.get("userName"));
+				cloudUser.setFamilyName((String)userInfo.get("familyName"));
+				cloudUser.setGivenName((String)userInfo.get("givenName"));
+				List<String> emailList = new ArrayList<String>();
+				List<Map<String, String>> emails = (ArrayList<Map<String, String>>) userInfo.get("emails");
+				for (Map<String, String> email : emails) {				
+					emailList.add((String)email.get("value"));
+				}
+				cloudUser.setEmails(emailList);
+				
+				List<String> phoneList = new ArrayList<String>();
+				if (userInfo.get("phoneNumbers") != null) {
+					List<Map<String, String>> phones = (List<Map<String, String>>) userInfo.get("phoneNumbers");
+					for (Map<String, String> phone : phones) {
+						phoneList.add((String)phone.get("value"));
+					}
+					cloudUser.setPhoneNumbers(phoneList);
+				}
+				cloudUser.setOrigin((String)userInfo.get("origin"));
+				users.add(cloudUser);
 			}
 		}
-		return null;
+		return users;
 	}
 
 	@Override
@@ -3151,7 +3305,19 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 
 	@Override
 	public List<CloudEvent> getEventsByEventType(String eventType) {
-		String urlPath = "/v2/events/?q=type:" + eventType;
+		String urlPath = "/v2/events?q=type:" + eventType;
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		List<CloudEvent> events = new ArrayList<CloudEvent>();
+		for (Map<String, Object> resource : resources) {
+			CloudEvent cloudEvent = resourceMapper.mapResource(resource, CloudEvent.class);
+			events.add(cloudEvent);
+		}
+		return events;
+	}
+
+	@Override
+	public List<CloudEvent> getAppEvent(String appGuid) {
+		String urlPath = "/v2/events?q=actee:" + appGuid;
 		List<Map<String,Object>> resources = getAllResources(urlPath, null);
 		List<CloudEvent> events = new ArrayList<CloudEvent>();
 		for (Map<String, Object> resource : resources) {
@@ -3164,7 +3330,7 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 	@Override
 	public List<CloudEvent> getEventsByActeeAndTimestamp(String actee,
 			String sign, String timestamp) {
-		String urlPath = "/v2/events/?q=actee:" + actee + "&q=timestamp" + sign + timestamp;
+		String urlPath = "/v2/events?q=actee:" + actee + "&q=timestamp" + sign + timestamp;
 		List<Map<String,Object>> resources = getAllResources(urlPath, null);
 		List<CloudEvent> events = new ArrayList<CloudEvent>();
 		for (Map<String, Object> resource : resources) {
@@ -3497,5 +3663,62 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		UUID spaceGuid = cloudSpace.getMeta().getGuid();
 		String urlPath = "/v2/spaces/" + spaceGuid + "/" + "auditors" + "/" + userGuid;
 		getRestTemplate().put(getUrl(urlPath), null);	
+	}
+
+	@Override
+	public String getOrganizationNameWithGuid(String orgGuid) {
+		Assert.notNull(orgGuid, "orgGuid must not be null");
+		String urlPath = "/v2/organizations/" + orgGuid + "/summary";
+		String orgName = "";
+		
+		String orgSummary = getRestTemplate().getForObject(getUrl(urlPath), String.class);
+		Map<String, Object> jsonToMap = JsonUtil.convertJsonToMap(orgSummary);
+		if (jsonToMap != null) {
+			orgName = (String) jsonToMap.get("name");
+			return orgName;
+		}
+		return orgName;
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public String getSpaceNameWithGuid(String spaceGuid) {
+		Assert.notNull(spaceGuid, "orgGuid must not be null");
+		String urlPath = "/v2/spaces/" + spaceGuid;
+		String spaceName = "";
+		String spaceSummary = getRestTemplate().getForObject(getUrl(urlPath), String.class);
+		Map<String, Object> jsonToMap = JsonUtil.convertJsonToMap(spaceSummary);
+		if (jsonToMap != null) {
+			Map<String,Object> entityMap = (Map<String, Object>) jsonToMap.get("entity");
+			spaceName = (String) entityMap.get("name");
+			return spaceName;
+		}
+		return spaceName;
+	}
+
+	@Override
+	public Integer getOrganizationMemoryUsage(String organizationName) {
+		Assert.notNull(organizationName, "organizationName must not be null");
+		int memory_usage = 0;
+		CloudOrganization organization = this.getOrgByName(organizationName, true);
+		String orgGuid = organization.getMeta().getGuid().toString();
+		String urlPath = "/v2/organizations/" + orgGuid + "/memory_usage";
+		String memUsage  = getRestTemplate().getForObject(getUrl(urlPath), String.class);
+		Map<String, Object> jsonToMap = JsonUtil.convertJsonToMap(memUsage);
+		if (jsonToMap != null) {
+			memory_usage = (Integer) jsonToMap.get("memory_usage_in_mb");
+		}
+		return memory_usage;
+	}
+
+	@Override
+	public OAuth2AccessToken getAccessCodeToken(CloudCredentials credentials) {
+		OAuth2AccessToken createAccessCodeToken = oauthClient.createAccessCodeToken(credentials);
+		return createAccessCodeToken;
+	}
+
+	@Override
+	public List<Map<String, Object>> getUaaUsersWithType(String type) {
+		return oauthClient.getUaaUsersWithType(type);
 	}
 }

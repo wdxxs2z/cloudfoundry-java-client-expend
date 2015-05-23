@@ -470,4 +470,30 @@ public interface CloudControllerClient {
 
 	void updateOrganization(CloudOrganization organization);
 
+	String getOrganizationNameWithGuid(String orgGuid);
+
+	String getSpaceNameWithGuid(String spaceGuid);
+
+	Integer getOrganizationMemoryUsage(String organizationName);
+
+	UUID getOrganizationUserGuid(String orgName, String username);
+
+	List<String> getUserRolesWithOrganization(String orgName, String username);
+
+	OAuth2AccessToken getAccessCodeToken(CloudCredentials credentials);
+
+	List<CloudEvent> getAppEvent(String appGuid);
+
+	CloudUser findADUserByUsername(String username, Boolean isAdmin);
+
+	List<CloudUser> getADAllUsers();
+
+	String getCurrentUserId();
+
+	List<CloudOrganization> getCurrentUserOrganizations();
+
+	List<Map<String, Object>> getUaaUsersWithType(String type);
+
+	void resetUserPassword(String username);
+
 }

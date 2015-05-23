@@ -27,8 +27,12 @@ public class CloudUser extends CloudEntity{
 	
 	private Boolean admin;
 	
+	private List<String> organization_roles;
 	
-
+	private List<String> space_roles;
+	
+	private String origin;
+	
 	public CloudUser(Meta meta, String name,List<CloudOrganization> organizations,
 			List<CloudSpace> spaces, List<String> phoneNumbers,
 			List<String> emails, String familyName, String givenName) {
@@ -71,7 +75,22 @@ public class CloudUser extends CloudEntity{
 		this.managed_spaces = managed_spaces;
 		this.audited_spaces = audited_spaces;
 	}
-
+	
+	public CloudUser(Meta meta, String name, Boolean admin, Boolean active,List<CloudOrganization> organizations, List<CloudOrganization> managed_organizations,
+			List<CloudOrganization> audited_organizations, List<CloudSpace> spaces, List<CloudSpace> managed_spaces, String origin,
+			List<CloudSpace> audited_spaces) {
+		super(meta, name);
+		this.admin = admin;
+		this.active = active;
+		this.organizations = organizations;
+		this.managed_organizations = managed_organizations;
+		this.audited_organizations = audited_organizations;
+		this.spaces = spaces;
+		this.managed_spaces = managed_spaces;
+		this.audited_spaces = audited_spaces;
+		this.origin = origin;
+	}
+	
 	public List<CloudOrganization> getOrganizations() {
 		return organizations;
 	}
@@ -170,4 +189,27 @@ public class CloudUser extends CloudEntity{
 		this.admin = admin;
 	}
 
+	public List<String> getOrganization_roles() {
+		return organization_roles;
+	}
+
+	public void setOrganization_roles(List<String> organization_roles) {
+		this.organization_roles = organization_roles;
+	}
+
+	public List<String> getSpace_roles() {
+		return space_roles;
+	}
+
+	public void setSpace_roles(List<String> space_roles) {
+		this.space_roles = space_roles;
+	}
+
+	public String getOrigin() {
+		return origin;
+	}
+
+	public void setOrigin(String origin) {
+		this.origin = origin;
+	}
 }

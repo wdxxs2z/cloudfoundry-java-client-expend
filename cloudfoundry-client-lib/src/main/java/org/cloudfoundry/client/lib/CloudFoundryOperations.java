@@ -1122,6 +1122,12 @@ public interface CloudFoundryOperations {
 	List<CloudEvent> getEventsByEventType(String eventType);
 	
 	/**
+	 * List actee and other events
+	 * @param types
+	 * */
+	List<CloudEvent> getAppEvent(String appGuid);
+	
+	/**
 	 * List events associated with an type enevt since January 1, 2014
 	 * sign will contains: <, >, <=, >=, IN
 	 * */
@@ -1441,7 +1447,7 @@ public interface CloudFoundryOperations {
 	
 	/**
 	 * removeShareDomain remove sharedDomain not the private domain.
-	 * This function is dangerous.
+	 * This function is dangerous. 
 	 * @param sharedDomainName
 	 * */
 	void removeShareDomain(String sharedDomainName);
@@ -1451,4 +1457,81 @@ public interface CloudFoundryOperations {
 	 * function role : admin
 	 * */
 	void updateOrganization(CloudOrganization organization);
+	
+	/**
+	 * getOrganizationNameWithGuid get organization name
+	 * function role : all
+	 * @param orgGuid
+	 * @return String
+	 * */
+	String getOrganizationNameWithGuid(String orgGuid);
+	
+	/**
+	 * getSpaceNameWithGuid get space name
+	 * function role : all
+	 * @param orgGuid
+	 * @return String
+	 * */
+	String getSpaceNameWithGuid(String spaceGuid);
+	
+	/**
+	 * getOrganizationMemoryUsage Unit:MB
+	 * funciton role : all
+	 * @param orgName
+	 * @return long mem usage
+	 * */
+	Integer getOrganizationMemoryUsage(String organizationName);
+	
+	/**
+	 * getOrganizationUserGuid 
+	 * function role : all
+	 * @param orgName
+	 * @param username
+	 * @return UUID
+	 * */
+	UUID getOrganizationUserGuid(String orgName, String username);
+	
+	/**
+	 * The function is support by 207 version
+	 * @param orgName
+	 * @param username
+	 * */
+	List<String> getUserRolesWithOrganization(String orgName, String username);
+	
+	/**
+	 * This function is get accessCodeToken
+	 * @param credentials
+	 * @return OAuth2AccessToken
+	 * */
+	OAuth2AccessToken getAccessCodeToken(CloudCredentials credentials);
+	
+	/**
+	 * This function is find AD user by username
+	 * ROLE admin
+	 * @param username
+	 * @param isAdmin 
+	 * @return CloudUser
+	 * */
+	CloudUser findADUserByUsername(String username,Boolean isAdmin);
+	
+	/**
+	 * This function is get all AD users
+	 * ROLE admin 
+	 * @return list cloudusers
+	 * */
+	List<CloudUser> getADAllUsers();
+	
+	/**
+	 * getCurrentUserId
+	 * 获取当前用户下的用户ID
+	 * @return String 
+	 * */
+	String getCurrentUserId();
+	
+	List<CloudOrganization> getCurrentUserOrganizations();
+	
+	List<Map<String,Object>> getUaaUsersWithType(String type);
+	
+	void resetUserPassword(String username);
+	
 }

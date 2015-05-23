@@ -36,6 +36,21 @@ public class CloudCredentials {
 	private OAuth2AccessToken token;
 
 	private String proxyUser;
+	
+	private String code;
+	
+	private String redirect_uri;
+
+	/**
+	 * Code grant
+	 * */
+	public CloudCredentials(String clientId, String clientSecret, String code,String redirect_uri ,OAuth2AccessToken token) {
+		this.clientId = clientId;
+		this.clientSecret = clientSecret;
+		this.code = code;
+		this.redirect_uri = redirect_uri;
+		this.token = token;
+	}
 
 	/**
 	 * Create credentials using email and password.
@@ -165,6 +180,32 @@ public class CloudCredentials {
 	 */
 	public String getClientSecret() {
 		return clientSecret;
+	}
+	
+	/**
+	 * Get the OAuth2 code
+	 * 
+	 * @return the client code
+	 * */
+	public String getCode() {
+		return code;
+	}
+
+	public void setCode(String code) {
+		this.code = code;
+	}
+
+	/**
+	 * Get the client redirect_uri
+	 * 
+	 * @return redirect_uri
+	 * */
+	public String getRedirect_uri() {
+		return redirect_uri;
+	}
+
+	public void setRedirect_uri(String redirect_uri) {
+		this.redirect_uri = redirect_uri;
 	}
 
 	/**
