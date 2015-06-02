@@ -1534,4 +1534,53 @@ public interface CloudFoundryOperations {
 	
 	void resetUserPassword(String username);
 	
+	List<Map<String,Object>> getAllResourcesWithparams(String urlPath, Map<String,Object> params);
+	
+	Map<String,Object> getResourceWithparams(String urlPath, Map<String,Object> params);
+	
+	String getOneObjectWithGuid(String urlPath);
+	
+	/**
+	 * getCloudEntity
+	 * @param requestType
+	 * @param name
+	 * @param depth
+	 * @return Map<String, Object>
+	 * "quota_definitions", "default", "0"  --> "/v2/quota_definitions?inline-relations-depth=0&q=name:default"
+	 * supprot spaces,apps,orgs,service_plans,service_instances... not support services,users
+	 * */
+	Map<String, Object> getCloudEntity(String requestType, String name, String depth);
+	
+	/**
+	 * getCloudResourcesWithPrefix
+	 * Map<String,String> prefixMap = new HashMap<String, String>();
+	 * prefixMap.put("spaces", "mycloud");
+	 * client.getCloudResourcesWithPrefix(prefixMap, "apps", "1");
+	 * "/v2/spaces/{space}/apps?inline-relations-depth=1"
+	 * support spaces,orgs,apps,quotas,service_instances,service_plans,services . not support users
+	 * */
+	List<Map<String,Object>> getCloudResourcesWithPrefix(Map<String,String> prefix, String requestType, String depth);
+	
+	/**
+	 * getCloudEntityWithPrefix
+	 * prefixMap.put("service_plans", "Tiny-Turtle");
+	 * client.getCloudEntityWithPrefix(prefixMap, "service_instances", "jojopost", "1");
+	 * "/v2/service_plans/{service_plan}/service_instances?inline-relations-depth=1&q=name:jojopost"
+	 * support spaces,apps,orgs,service_plan,service_instances,quotas... not support services,users
+	 * */
+	Map<String, Object> getCloudEntityWithPrefix(Map<String,String> prefix, String requestType, String name, String depth);
+	
+	/**
+	 * getCloudResources
+	 * "/v2/apps?inline-relations-depth=1"
+	 * */
+	List<Map<String,Object>> getCloudResources(String requestType, String depth);
+	
+	/**
+	 * getObjectGuid
+	 * "/v2/apps" get the requestType's guid
+	 * support apps,spaces,orgs,services,service_plans,service_instances,quotas... not support users.
+	 * */
+	String getObjectGuid(String requestType, String name);
+	
 }

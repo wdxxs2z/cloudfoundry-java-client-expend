@@ -292,22 +292,6 @@ public class OauthClient {
 		restTemplate.put(authorizationUrl + "/Users/{id}/password", httpEntity, userGuid);		
 	}
 	
-	@SuppressWarnings({ "unchecked", "rawtypes" })
-	public String getUserPassword(String username) {
-		HttpHeaders headers = new HttpHeaders();
-		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
-		HttpEntity info = new HttpEntity(headers);
-		ResponseEntity<String> response = restTemplate.exchange(authorizationUrl + "/Users?attributes=password&filter=userName eq " + "'" + username + "'", HttpMethod.GET, info, String.class);
-		Map<String, Object> responseMap = JsonUtil.convertJsonToMap(response.getBody());
-		ArrayList<Map<String, Object>> resources =  (ArrayList<Map<String, Object>>) responseMap.get("resources");
-		for(Map<String, Object> resource : resources){
-			if(resource.containsKey("password")){
-				return (String) resource.get("password");
-			}
-		}
-		return null;
-	}
-	
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	public String getUserName(String uuid){
 		HttpHeaders headers = new HttpHeaders();

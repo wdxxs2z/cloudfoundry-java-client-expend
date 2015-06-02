@@ -3721,4 +3721,133 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 	public List<Map<String, Object>> getUaaUsersWithType(String type) {
 		return oauthClient.getUaaUsersWithType(type);
 	}
+	
+	public List<Map<String,Object>> getAllResourcesWithparams(String urlPath, Map<String,Object> params) {
+		Assert.notNull(urlPath, "Url path must be set,not null");
+		List<Map<String,Object>> resources = getAllResources(urlPath, params);
+		return resources;
+	}
+	
+	public Map<String,Object> getResourceWithparams(String urlPath, Map<String,Object> params) {
+		Assert.notNull(urlPath, "Url path must be set,not null");
+		List<Map<String,Object>> resources = getAllResources(urlPath, params);
+		Map<String,Object> resource = null;
+		if (resources != null && resources.size()!=0) {
+			resource = resources.get(0);
+		}
+		return resource;
+	}
+	
+	public String getOneObjectWithGuid(String urlPath) {
+		Assert.notNull(urlPath, "The urlPath must not null");
+		String forObject = getRestTemplate().getForObject(getUrl(urlPath), String.class);
+		return forObject;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public String getObjectGuidWithName(String objectType, String name) {
+		Assert.notNull(name, "The Object name must be set!");
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		urlVars.put("q", "name:" + name);
+		String urlPath = "/v2/" + objectType + "?inline-relations-depth=1&q={q}";
+		List<Map<String, Object>> resources = getAllResources(urlPath, urlVars);
+		UUID guid = null;
+		if(resources!=null) {
+			Map<String, Object> resourceMap = resources.get(0);
+			Map<String, Object> appMeta = (Map<String, Object>) resourceMap.get("metadata");
+			guid = UUID.fromString(String.valueOf(appMeta.get("guid")));
+		}
+		return guid.toString();
+	}
+	
+	@SuppressWarnings("unchecked")
+	public Map<String,Object> getEntityNotResource(String urlPath) {
+		Assert.notNull(urlPath, "Url must be not null");
+		String objectResource = getRestTemplate().getForObject(getUrl(urlPath), String.class);
+		Map<String, Object> jsonToMap = JsonUtil.convertJsonToMap(objectResource);
+		Map<String,Object> entity = (Map<String, Object>) jsonToMap.get("entity");
+		return entity;
+	}
+	
+	public Map<String, Object> getCloudEntity(String requestType, String name, String depth) {		
+		Assert.notNull(requestType, "The requestType must not null");
+		String objectGuid = "";
+		String forObject = "";
+		Map<String, Object> objectEntity = new HashMap<String, Object>();		
+		objectGuid = getObjectGuid(requestType, name);
+		if (!objectGuid.equals("")) {
+			forObject = getRestTemplate().getForObject(getUrl("/v2/" + requestType + "/" + objectGuid + "?inline-relations-depth=" + depth)
+					, String.class);
+		}
+		if (!forObject.equals("")) {
+			objectEntity = JsonUtil.convertJsonToMap(forObject);
+		}
+		return objectEntity;
+	}
+	
+	public List<Map<String,Object>> getCloudResources(String requestType, String depth) {
+		Assert.notNull(requestType, "The requestType must not null!");
+		String urlPath = "/v2/" + requestType;
+		urlPath = urlPath + "?inline-relations-depth=" + depth;
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		return resources;
+	}
+	
+	@SuppressWarnings("unchecked")
+	public String getObjectGuid(String requestType, String name) {
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		String urlPath = "/v2/" + requestType;
+		urlPath = urlPath + "?inline-relations-depth=1&q={q}";
+		if (requestType.equalsIgnoreCase("services")) {
+			urlVars.put("q", "label:" + name);
+		}else{
+			urlVars.put("q", "name:" + name);
+		}		
+		List<Map<String, Object>> resources = getAllResources(urlPath, urlVars);
+		UUID guid = null;
+		if(resources!=null) {
+			Map<String, Object> resourceMap = resources.get(0);
+			Map<String, Object> appMeta = (Map<String, Object>) resourceMap.get("metadata");
+			guid = UUID.fromString(String.valueOf(appMeta.get("guid")));
+		}
+		String objectGuid = guid.toString();
+		return objectGuid;
+	}
+	
+	public List<Map<String,Object>> getCloudResourcesWithPrefix(Map<String,String> prefix, String requestType, String depth) {
+		String prefixName = "";
+		String prefixValue = "";
+		for (String key : prefix.keySet()) {
+			prefixName = key;
+			prefixValue = prefix.get(key);
+		}
+		String prefixGuid = getObjectGuid(prefixName, prefixValue);
+		String urlPath = "/v2/" + prefixName + "/" + prefixGuid + "/" + requestType + "?inline-relations-depth=" + depth;
+		List<Map<String,Object>> resources = getAllResources(urlPath, null);
+		return resources;
+	}
+	
+	public Map<String, Object> getCloudEntityWithPrefix(Map<String,String> prefix, String requestType, String name, String depth) {
+		String prefixName = "";
+		String prefixValue = "";
+		String urlPath = "";
+		Map<String, Object> urlVars = new HashMap<String, Object>();
+		urlVars.put("q", "name:" + name);
+		Map<String, Object> cloudEntity = new HashMap<String, Object>();
+		for (String key : prefix.keySet()) {
+			prefixName = key;
+			prefixValue = prefix.get(key);
+		}
+		String prefixGuid = getObjectGuid(prefixName, prefixValue);
+		if (prefixGuid == null) {
+			throw new IllegalArgumentException("No matching " + prefixName + ": " + prefixValue);
+		}else{
+			urlPath = "/v2/" + prefixName + "/" + prefixGuid + "/" + requestType + "?inline-relations-depth=1&q={q}";
+			List<Map<String,Object>> resources = getAllResources(urlPath, urlVars);
+			if (resources != null) {
+				cloudEntity = resources.get(0);
+			}
+		}		
+		return cloudEntity;
+	}
 }

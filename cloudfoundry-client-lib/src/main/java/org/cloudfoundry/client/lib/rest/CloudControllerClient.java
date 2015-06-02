@@ -496,4 +496,25 @@ public interface CloudControllerClient {
 
 	void resetUserPassword(String username);
 
+	List<Map<String, Object>> getAllResourcesWithparams(String urlPath,
+			Map<String, Object> params);
+
+	Map<String, Object> getResourceWithparams(String urlPath,
+			Map<String, Object> params);
+
+	String getOneObjectWithGuid(String urlPath);
+
+	Map<String, Object> getCloudEntity(String requestType, String name,
+			String depth);
+
+	List<Map<String, Object>> getCloudResourcesWithPrefix(
+			Map<String, String> prefix, String requestType, String depth);
+
+	Map<String, Object> getCloudEntityWithPrefix(Map<String, String> prefix,
+			String requestType, String name, String depth);
+
+	List<Map<String, Object>> getCloudResources(String requestType, String depth);
+
+	String getObjectGuid(String requestType, String name);
+
 }

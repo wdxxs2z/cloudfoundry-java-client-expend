@@ -1199,4 +1199,51 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 		cc.resetUserPassword(username);
 	}
 
+	@Override
+	public List<Map<String, Object>> getAllResourcesWithparams(String urlPath,
+			Map<String, Object> params) {
+		return cc.getAllResourcesWithparams(urlPath, params);
+	}
+
+	@Override
+	public Map<String, Object> getResourceWithparams(String urlPath,
+			Map<String, Object> params) {
+		return cc.getResourceWithparams(urlPath, params);
+	}
+
+	@Override
+	public String getOneObjectWithGuid(String urlPath) {
+		return cc.getOneObjectWithGuid(urlPath);
+	}
+
+	@Override
+	public Map<String, Object> getCloudEntity(String requestType,
+			String name, String depth) {
+		return cc.getCloudEntity(requestType, name, depth);
+	}
+
+	@Override
+	public List<Map<String, Object>> getCloudResourcesWithPrefix(
+			Map<String, String> prefix, String requestType, String depth) {
+		return cc.getCloudResourcesWithPrefix(prefix, requestType, depth);
+	}
+
+	@Override
+	public Map<String, Object> getCloudEntityWithPrefix(
+			Map<String, String> prefix, String requestType, String name,
+			String depth) {
+		return cc.getCloudEntityWithPrefix(prefix, requestType, name, depth);
+	}
+
+	@Override
+	public List<Map<String, Object>> getCloudResources(String requestType,
+			String depth) {
+		return cc.getCloudResources(requestType, depth);
+	}
+
+	@Override
+	public String getObjectGuid(String requestType, String name) {
+		return cc.getObjectGuid(requestType, name);
+	}
+	
 }
