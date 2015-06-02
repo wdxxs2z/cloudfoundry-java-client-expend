@@ -3832,7 +3832,6 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		String prefixValue = "";
 		String urlPath = "";
 		Map<String, Object> urlVars = new HashMap<String, Object>();
-		urlVars.put("q", "name:" + name);
 		Map<String, Object> cloudEntity = new HashMap<String, Object>();
 		for (String key : prefix.keySet()) {
 			prefixName = key;
@@ -3842,6 +3841,11 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		if (prefixGuid == null) {
 			throw new IllegalArgumentException("No matching " + prefixName + ": " + prefixValue);
 		}else{
+			if (requestType.equalsIgnoreCase("services")) {
+				urlVars.put("q", "label:" + name);
+			}else{
+				urlVars.put("q", "name:" + name);
+			}
 			urlPath = "/v2/" + prefixName + "/" + prefixGuid + "/" + requestType + "?inline-relations-depth=1&q={q}";
 			List<Map<String,Object>> resources = getAllResources(urlPath, urlVars);
 			if (resources != null) {

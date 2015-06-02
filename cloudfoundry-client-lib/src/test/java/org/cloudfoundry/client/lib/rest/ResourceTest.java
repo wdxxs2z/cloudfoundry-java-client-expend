@@ -31,7 +31,11 @@ public class ResourceTest {
 //		client.getCloudResourcesWithPrefix(prefixMap, "apps", "1");
 		Map<String,String> prefixMap = new HashMap<String, String>();
 		prefixMap.put("services", "elephantsql");
-		client.getCloudEntityWithPrefix(prefixMap, "service_plans", "Tiny-Turtle", "1");
+		List<Map<String, Object>> resources = client.getCloudResourcesWithPrefix(prefixMap, "service_plans", "1");
+		prefixMap.clear();
+		prefixMap.put("spaces", "development");
+		client.getCloudEntityWithPrefix(prefixMap, "services", "elephantsql", "1");
+//		client.getCloudEntityWithPrefix(prefixMap, "service_instances", "jojopost", "1");
 	}
 
 }
