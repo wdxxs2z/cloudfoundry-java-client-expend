@@ -1583,4 +1583,11 @@ public interface CloudFoundryOperations {
 	 * */
 	String getObjectGuid(String requestType, String name);
 	
+	/**
+	 * getCloudStringResources
+	 * "/v2/users"
+	 * @author shaodong
+	 * */
+	String getCloudStringResources(String requestType, String depth);
+	
 }

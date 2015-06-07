@@ -1245,5 +1245,10 @@ public class CloudFoundryClient implements CloudFoundryOperations {
 	public String getObjectGuid(String requestType, String name) {
 		return cc.getObjectGuid(requestType, name);
 	}
+
+	@Override
+	public String getCloudStringResources(String requestType, String depth) {
+		return cc.getCloudStringResources(requestType, depth);
+	}
 	
 }

@@ -517,4 +517,6 @@ public interface CloudControllerClient {
 
 	String getObjectGuid(String requestType, String name);
 
+	String getCloudStringResources(String requestType, String depth);
+
 }

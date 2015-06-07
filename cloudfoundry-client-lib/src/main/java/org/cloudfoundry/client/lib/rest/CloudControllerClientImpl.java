@@ -105,6 +105,7 @@ import org.springframework.web.client.RequestCallback;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.ResponseErrorHandler;
 import org.springframework.web.client.ResponseExtractor;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 /**
@@ -3349,11 +3350,23 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 
 	@Override
 	public void deleteUserWithUserName(String username) {
-		CloudUser cloudUser = getUsersummaryFromUserName(username);
-		if (cloudUser != null) {
-			String urlPath = "/v2/users/" + cloudUser.getMeta().getGuid().toString();
-			getRestTemplate().delete(getUrl(urlPath));
+		String userId = getUserIdByName(username);
+		if (userId != null) {
+			String urlPath = "/v2/users/" + userId;
+			try {
+				getRestTemplate().delete(getUrl(urlPath));
+			} catch (RestClientException e) {
+				e.printStackTrace();
+			}
+			oauthClient.deleteUser(userId);
 		}
+	}
+	
+	public String getUserIdByName(String username) {
+		// TODO Auto-generated method stub
+		Assert.notNull(username, "Username must not be null");
+		String userGuid = oauthClient.getUserIdByName(username);
+		return userGuid;
 	}
 
 	@Override
@@ -3793,24 +3806,43 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		return resources;
 	}
 	
-	@SuppressWarnings("unchecked")
+	@SuppressWarnings({ "unchecked", "static-access" })
 	public String getObjectGuid(String requestType, String name) {
 		Map<String, Object> urlVars = new HashMap<String, Object>();
 		String urlPath = "/v2/" + requestType;
 		urlPath = urlPath + "?inline-relations-depth=1&q={q}";
 		if (requestType.equalsIgnoreCase("services")) {
 			urlVars.put("q", "label:" + name);
+		}else if (requestType.equalsIgnoreCase("routes")) {
+			urlVars.put("q", "host:" + name);
+		}else if (requestType.equalsIgnoreCase("users")) {
+			urlPath = "/v2/" + requestType + "?inline-relations-depth=1";
 		}else{
 			urlVars.put("q", "name:" + name);
-		}		
-		List<Map<String, Object>> resources = getAllResources(urlPath, urlVars);
-		UUID guid = null;
-		if(resources!=null) {
-			Map<String, Object> resourceMap = resources.get(0);
-			Map<String, Object> appMeta = (Map<String, Object>) resourceMap.get("metadata");
-			guid = UUID.fromString(String.valueOf(appMeta.get("guid")));
 		}
-		String objectGuid = guid.toString();
+		
+		String objectGuid = "";
+		
+		if (requestType.equalsIgnoreCase("users")) {
+			List<Map<String, Object>> resources = getAllResources(urlPath, null);
+			String username = "";
+			for (Map<String, Object> resource : resources) {
+				username = resourceMapper.getEntityAttribute(resource, "username", String.class);
+				if (username.equals(name)) {
+					objectGuid = resourceMapper.getGuidOfResource(resource).toString();
+					break;
+				}
+			}
+		}else {
+			List<Map<String, Object>> resources = getAllResources(urlPath, urlVars);
+			UUID guid = null;
+			if(resources!=null) {
+				Map<String, Object> resourceMap = resources.get(0);
+				Map<String, Object> appMeta = (Map<String, Object>) resourceMap.get("metadata");
+				guid = UUID.fromString(String.valueOf(appMeta.get("guid")));
+				objectGuid = guid.toString();
+			}
+		}		
 		return objectGuid;
 	}
 	
@@ -3843,6 +3875,8 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		}else{
 			if (requestType.equalsIgnoreCase("services")) {
 				urlVars.put("q", "label:" + name);
+			}else if (requestType.equalsIgnoreCase("routes")) {
+				urlVars.put("q", "host:" + name);
 			}else{
 				urlVars.put("q", "name:" + name);
 			}
@@ -3854,4 +3888,12 @@ public class CloudControllerClientImpl implements CloudControllerClient {
 		}		
 		return cloudEntity;
 	}
+
+	@Override
+	public String getCloudStringResources(String requestType, String depth) {
+		String urlPath = "/v2/" + requestType + "?inline-relations-depth=" + depth;
+		String object = getRestTemplate().getForObject(getUrl(urlPath), String.class);
+		return object;
+	}
+	
 }

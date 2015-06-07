@@ -16,6 +16,8 @@
 
 package org.cloudfoundry.client.lib.oauth2;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Date;
@@ -788,5 +790,24 @@ public class OauthClient {
 		}
 		
 		return groupResource;
+	}
+
+	@SuppressWarnings("rawtypes")
+	public void deleteUser(String userId) {
+		HttpHeaders headers = new HttpHeaders();
+		headers.add(AUTHORIZATION_HEADER_KEY, token.getTokenType() + " " + token.getValue());
+		headers.add("Content-Type", "application/json;charset=utf-8");
+		headers.add("accept", "application/json");
+		
+		HttpEntity<Map> httpEntity = new HttpEntity<Map>(headers);
+		
+		String urlPath = authorizationUrl + "/Users/" + userId;
+		URI uri = null;
+		try {
+			uri = new URI(urlPath);
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
+		}
+		restTemplate.exchange(uri, HttpMethod.DELETE, httpEntity, String.class);
 	}
 }
